@@ -162,6 +162,16 @@ describe('Header & Footer Localization', () => {
       expect(zhAgentsItem).toHaveAttribute('href', '/zh/agents');
       expect(zhAgentsItem).toHaveAttribute('aria-current', 'page');
 
+      const zhSharingItem = screen.getByRole('link', { name: /受控安全外发/i });
+      expect(zhSharingItem).toHaveAttribute('href', '/zh/features/secure-sharing');
+
+      mockPathname = '/zh/features/dynamic-watermarking';
+      rerender(<Header />);
+      expect(screen.getByRole('button', { name: /功能特性/i })).toHaveClass(
+        'text-gray-900',
+        'font-semibold'
+      );
+
       mockPathname = '/demo';
       rerender(<Header />);
       const demoLink = screen.getByRole('link', { name: 'Live Demo' });
@@ -227,6 +237,10 @@ describe('Header & Footer Localization', () => {
       expect(screen.getByText('公司')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: '关于我们' })).toHaveAttribute('href', '/zh/about');
       expect(screen.getByRole('link', { name: '博客' })).toHaveAttribute('href', '/zh/blog');
+      expect(screen.getByRole('link', { name: '受控安全外发' })).toHaveAttribute(
+        'href',
+        '/zh/features/secure-sharing'
+      );
 
       // Language switcher has link back to English root /
       expect(screen.getByRole('link', { name: 'English' })).toHaveAttribute('href', '/');
@@ -293,7 +307,10 @@ describe('Header & Footer Localization', () => {
       cleanup();
       mockPathname = '/features/dynamic-watermarking';
       render(<Footer />);
-      expect(screen.getByRole('link', { name: '中文' })).toHaveAttribute('href', '/zh');
+      expect(screen.getByRole('link', { name: '中文' })).toHaveAttribute(
+        'href',
+        '/zh/features/dynamic-watermarking'
+      );
     });
   });
 
@@ -306,6 +323,8 @@ describe('Header & Footer Localization', () => {
         '/agents',
         '/blog',
         '/help',
+        '/features',
+        '/features/file-request-embed',
       ]);
       expect(ZH_ALL_ROUTES).toEqual([
         '/zh',
@@ -315,6 +334,8 @@ describe('Header & Footer Localization', () => {
         '/zh/agents',
         '/zh/blog',
         '/zh/help',
+        '/zh/features',
+        '/zh/features/file-request-embed',
       ]);
     });
 
@@ -337,6 +358,13 @@ describe('Header & Footer Localization', () => {
           translatedHelpSlugs: ['getting-started'],
         })
       ).toBe('/help/getting-started');
+      expect(getAlternateLocalePath('/zh/features', true)).toBe('/features');
+      expect(getAlternateLocalePath('/zh/features/secure-sharing', true)).toBe(
+        '/features/secure-sharing'
+      );
+      expect(getAlternateLocalePath('/zh/features/file-request-embed', true)).toBe(
+        '/features/file-request-embed'
+      );
 
       // From English to Chinese
       expect(getAlternateLocalePath('/', false)).toBe('/zh');
@@ -356,10 +384,18 @@ describe('Header & Footer Localization', () => {
           translatedHelpSlugs: ['getting-started'],
         })
       ).toBe('/zh/help/getting-started');
+      expect(getAlternateLocalePath('/features', false)).toBe('/zh/features');
+      expect(getAlternateLocalePath('/features/secure-sharing', false)).toBe(
+        '/zh/features/secure-sharing'
+      );
+      expect(getAlternateLocalePath('/features/file-request-embed', false)).toBe(
+        '/zh/features/file-request-embed'
+      );
+      expect(getAlternateLocalePath('/features/unknown-feature', false)).toBe('/zh/features');
 
       // Untranslated paths fallback to /zh
       expect(getAlternateLocalePath('/solutions/sales', false)).toBe('/zh');
-      expect(getAlternateLocalePath('/features/online-document-preview', false)).toBe('/zh');
+      expect(getAlternateLocalePath('/integrations/nextcloud', false)).toBe('/zh');
     });
   });
 

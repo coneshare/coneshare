@@ -350,7 +350,7 @@ export default function ZhHomePage() {
 
               <div className="mt-6 pt-2">
                 <Link
-                  href="/features/dynamic-watermarking"
+                  href="/zh/features/dynamic-watermarking"
                   className="inline-flex items-center text-sm font-semibold text-gray-900 hover:text-emerald-600 transition"
                 >
                   探索动态水印特性 <span className="ml-1" aria-hidden="true">→</span>
@@ -365,7 +365,7 @@ export default function ZhHomePage() {
                   多格式免安装在线预览
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                  直接在现代浏览器中清晰预览 PDF、Office 文档、多工作表 Excel 表格、苹果 HEIC 照片以及高清视频，对方无需安装任何插件。
+                  直接在现代浏览器中清晰预览 PDF、Office 文档、多工作表 Excel 表格、高清图片以及视频，对方无需安装任何插件。
                 </p>
               </div>
 
@@ -373,7 +373,7 @@ export default function ZhHomePage() {
 
               <div className="mt-6 pt-2">
                 <Link
-                  href="/features/online-document-preview"
+                  href="/zh/features/online-document-preview"
                   className="inline-flex items-center text-sm font-semibold text-gray-900 hover:text-emerald-600 transition"
                 >
                   了解多格式在线预览 <span className="ml-1" aria-hidden="true">→</span>
@@ -439,7 +439,7 @@ export default function ZhHomePage() {
 
               <div className="mt-6 pt-2">
                 <Link
-                  href="/features/advanced-analytics"
+                  href="/zh/features/advanced-analytics"
                   className="inline-flex items-center text-sm font-semibold text-gray-900 hover:text-emerald-600 transition"
                 >
                   探索阅读分析特性 <span className="ml-1" aria-hidden="true">→</span>
@@ -452,7 +452,7 @@ export default function ZhHomePage() {
           {/* Minimalist Centered Feature Matrix Link */}
           <div className="mt-14 text-center">
             <Link
-              href="/features"
+              href="/zh/features"
               className="inline-flex items-center text-sm font-semibold text-gray-900 hover:text-emerald-600 transition"
             >
               查看完整功能列表 <span className="ml-1" aria-hidden="true">→</span>

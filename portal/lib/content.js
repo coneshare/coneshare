@@ -1,5 +1,6 @@
 import { ShieldCheck, LineChart, Droplets, HardDrive, Folders, Cloud, UploadCloud, TrendingUp, Landmark, Target, Workflow, Clock3, FileText, MessageSquare, Sliders, Palette, Link2 } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { ZoomableImage } from '../components/ZoomableImage';
 
 export const features = [
@@ -387,7 +388,13 @@ export const features = [
     content: (
       <div>
         <h3 className="text-xl font-semibold mb-4">Streamline Content Collection</h3>
-        <p className="mb-4">Create a secure upload link for any folder. External collaborators can use this link to upload files directly to you, simplifying how you collect documents from clients, partners, or vendors.</p>
+        <p className="mb-4">
+          Create a secure upload link for any folder. External collaborators can use this link to upload files directly to you, simplifying how you collect documents from clients, partners, or vendors. You can also embed upload forms directly into your client portal using our{' '}
+          <Link href="/features/file-request-embed" className="font-semibold text-gray-900 underline">
+            iframe embedding guide
+          </Link>
+          .
+        </p>
         <Image src="/screenshots/feat-filerequest1.png" alt="Screenshot of creating a file request link" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
 
         <h3 className="text-xl font-semibold mb-4">Track Every Submission</h3>
@@ -400,6 +407,7 @@ export const features = [
     slug: 'self-hosted',
     name: 'Self-Hosted & Enterprise-Ready',
     menuName: 'Self-Hosting',
+    menuNameZh: '私有化部署',
     description: 'Built for security-conscious organizations, Coneshare runs entirely on your own infrastructure, giving you total data sovereignty.',
     bestFor: 'Organizations with strict data residency and compliance requirements',
     primarySignal: 'All sharing and event telemetry stays within your infrastructure',
@@ -454,11 +462,7 @@ export const features = [
           {/* 1. PDF Documents */}
           <div className="flex flex-col justify-between rounded-xl border border-gray-200 bg-gray-50/70 p-5 shadow-sm">
             <div>
-              <div className="flex items-center justify-between">
-                <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-mono font-bold text-red-700">PDF</span>
-                <span className="text-[11px] font-mono text-gray-400">.pdf</span>
-              </div>
-              <h4 className="mt-2 text-base font-bold text-gray-900">PDF Documents</h4>
+              <h4 className="text-base font-bold text-gray-900">PDF Documents</h4>
               <p className="mt-1 text-xs text-gray-600">
                 Vector-sharp typography, responsive multi-page layout, and dynamic watermarks across every rendered page.
               </p>
@@ -478,11 +482,7 @@ export const features = [
           {/* 2. Word & PowerPoint Documents */}
           <div className="flex flex-col justify-between rounded-xl border border-gray-200 bg-gray-50/70 p-5 shadow-sm">
             <div>
-              <div className="flex items-center justify-between">
-                <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-mono font-bold text-blue-700">DOCX &amp; PPTX</span>
-                <span className="text-[11px] font-mono text-gray-400">.docx, .pptx</span>
-              </div>
-              <h4 className="mt-2 text-base font-bold text-gray-900">Word &amp; Presentations</h4>
+              <h4 className="text-base font-bold text-gray-900">Word &amp; Presentations</h4>
               <p className="mt-1 text-xs text-gray-600">
                 Faithful font rendering, slide navigation, and layout preservation without requiring Microsoft Office.
               </p>
@@ -502,11 +502,7 @@ export const features = [
           {/* 3. Spreadsheets & CSV */}
           <div className="flex flex-col justify-between rounded-xl border border-gray-200 bg-gray-50/70 p-5 shadow-sm">
             <div>
-              <div className="flex items-center justify-between">
-                <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-mono font-bold text-emerald-800">SPREADSHEET</span>
-                <span className="text-[11px] font-mono text-gray-400">.xlsx, .csv</span>
-              </div>
-              <h4 className="mt-2 text-base font-bold text-gray-900">Spreadsheets &amp; Financials</h4>
+              <h4 className="text-base font-bold text-gray-900">Spreadsheets &amp; Financials</h4>
               <p className="mt-1 text-xs text-gray-600">
                 Interactive tabular browsing with multiple sheets, formula results, and freeze pane preservation.
               </p>
@@ -523,23 +519,19 @@ export const features = [
             </div>
           </div>
 
-          {/* 4. High-Efficiency Images & HEIC */}
+          {/* 4. High-Resolution Images */}
           <div className="flex flex-col justify-between rounded-xl border border-gray-200 bg-gray-50/70 p-5 shadow-sm">
             <div>
-              <div className="flex items-center justify-between">
-                <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-mono font-bold text-amber-800">IMAGE &amp; HEIC</span>
-                <span className="text-[11px] font-mono text-gray-400">.heic, .png, .jpg</span>
-              </div>
-              <h4 className="mt-2 text-base font-bold text-gray-900">Images &amp; Mobile Photos</h4>
+              <h4 className="text-base font-bold text-gray-900">Images</h4>
               <p className="mt-1 text-xs text-gray-600">
-                Automatic server-side decoding of Apple HEIC/HEIF files alongside standard high-resolution web formats.
+                Automatic server-side decoding and optimization across standard desktop and mobile image formats.
               </p>
             </div>
             {/* Screenshot: Image */}
             <div className="mt-4 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
               <ZoomableImage
                 src="/screenshots/preview-image.png"
-                alt="High-efficiency HEIC and image viewer preview"
+                alt="Online high-resolution image viewer preview"
                 width={1533}
                 height={819}
                 className="w-full h-auto object-cover rounded-lg"
@@ -550,11 +542,7 @@ export const features = [
           {/* 5. Streaming Video Player */}
           <div className="flex flex-col justify-between rounded-xl border border-gray-200 bg-gray-50/70 p-5 shadow-sm sm:col-span-2">
             <div>
-              <div className="flex items-center justify-between">
-                <span className="rounded bg-purple-100 px-2 py-0.5 text-xs font-mono font-bold text-purple-700">VIDEO</span>
-                <span className="text-[11px] font-mono text-gray-400">.mp4, .mov, .webm</span>
-              </div>
-              <h4 className="mt-2 text-base font-bold text-gray-900">In-Browser Video Playback</h4>
+              <h4 className="text-base font-bold text-gray-900">In-Browser Video Playback</h4>
               <p className="mt-1 text-xs text-gray-600">
                 Stream product walkthroughs, architecture overviews, and demo clips with adaptive HTML5 controls and protected streaming.
               </p>

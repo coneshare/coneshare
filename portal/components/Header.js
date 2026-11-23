@@ -27,6 +27,7 @@ function getFeatureHref(baseHref, item) {
 }
 
 function getFeatureMenuItems(isZh) {
+  const basePath = isZh ? '/zh/features' : '/features';
   const mapped = features.map((item) => {
     if (item.type === 'group') {
       return item;
@@ -34,7 +35,7 @@ function getFeatureMenuItems(isZh) {
     return {
       key: item.slug,
       label: isZh && item.menuNameZh ? item.menuNameZh : item.menuName,
-      href: getFeatureHref('/features', item),
+      href: getFeatureHref(basePath, item),
     };
   });
 
@@ -219,6 +220,7 @@ export function Header({ locale }) {
   const blogActive = isRouteActive(pathname, blogHref, { prefix: true });
   const featuresActive =
     isRouteActive(pathname, '/features', { prefix: true }) ||
+    isRouteActive(pathname, '/zh/features', { prefix: true }) ||
     featureMenuItems.some((item) => item.type !== 'group' && isRouteActive(pathname, item.href));
   const resourcesActive = resourceMenuItems.some(
     (item) => !item.external && isRouteActive(pathname, item.href, { prefix: true })

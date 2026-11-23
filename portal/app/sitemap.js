@@ -43,10 +43,16 @@ function buildBlogSitemapEntries(basePath, posts, categories, tags) {
 }
 
 export default async function sitemap() {
-  const featureRoutes = features.map((feature) => ({
-    url: `${URL}/features/${feature.slug}`,
-    lastModified: new Date(),
-  }));
+  const featureRoutes = features.flatMap((feature) => [
+    {
+      url: `${URL}/features/${feature.slug}`,
+      lastModified: new Date(),
+    },
+    {
+      url: `${URL}/zh/features/${feature.slug}`,
+      lastModified: new Date(),
+    },
+  ]);
 
   const solutionRoutes = solutions.map((solution) => ({
     url: `${URL}/solutions/${solution.slug}`,

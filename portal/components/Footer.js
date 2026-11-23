@@ -34,7 +34,7 @@ export function Footer({ locale, translatedBlogSlugs = [], translatedHelpSlugs =
         .filter((feature) => feature.slug !== 'self-hosted')
         .map((feature) => ({
           label: (isZh && feature.menuNameZh) ? feature.menuNameZh : (feature.menuName || feature.name),
-          href: `/features/${feature.slug}`,
+          href: isZh ? `/zh/features/${feature.slug}` : `/features/${feature.slug}`,
         })),
     },
     {

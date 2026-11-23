@@ -11,6 +11,8 @@ export const ZH_SUPPORTED_SUBPATHS = [
   '/agents',
   '/blog',
   '/help',
+  '/features',
+  '/features/file-request-embed',
 ];
 
 // All Chinese routes including root /zh
@@ -18,6 +20,19 @@ export const ZH_ALL_ROUTES = [
   '/zh',
   ...ZH_SUPPORTED_SUBPATHS.map((path) => `/zh${path}`),
 ];
+
+export const ZH_FEATURE_SLUGS = new Set([
+  'secure-sharing',
+  'advanced-analytics',
+  'dynamic-watermarking',
+  'virtual-data-rooms',
+  'cloud-storage-integration',
+  'workflow-automation-integration',
+  'file-requests',
+  'self-hosted',
+  'online-document-preview',
+  'file-request-embed',
+]);
 
 function mapDetailLocalePath(cleanPath, fromPrefix, toPrefix, fallbackPath, translatedSlugsSet) {
   const slug = cleanPath.slice(fromPrefix.length);
@@ -29,8 +44,8 @@ function mapDetailLocalePath(cleanPath, fromPrefix, toPrefix, fallbackPath, tran
 
 /**
  * Returns the corresponding URL for the alternative locale.
- * - From ZH to EN: removes /zh prefix; preserves /blog/<slug> and /help/<slug> when both locales exist
- * - From EN to ZH: checks whitelist; preserves /zh/blog/<slug> and /zh/help/<slug> when both locales exist
+ * - From ZH to EN: removes /zh prefix; preserves /blog/<slug>, /help/<slug>, and /features/<slug>
+ * - From EN to ZH: checks whitelist; preserves /zh/blog/<slug>, /zh/help/<slug>, and /zh/features/<slug>
  */
 export function getAlternateLocalePath(pathname, currentIsZh, options = {}) {
   if (!pathname) {
@@ -61,6 +76,18 @@ export function getAlternateLocalePath(pathname, currentIsZh, options = {}) {
     if (cleanPath.startsWith('/zh/help/')) {
       return mapDetailLocalePath(cleanPath, '/zh/help/', '/help/', '/help', translatedHelpSlugs);
     }
+    if (cleanPath === '/zh/features') {
+      return '/features';
+    }
+    if (cleanPath.startsWith('/zh/features/')) {
+      return mapDetailLocalePath(
+        cleanPath,
+        '/zh/features/',
+        '/features/',
+        '/features',
+        ZH_FEATURE_SLUGS
+      );
+    }
     return cleanPath.replace(/^\/zh/, '') || '/';
   }
 
@@ -75,6 +102,15 @@ export function getAlternateLocalePath(pathname, currentIsZh, options = {}) {
   }
   if (cleanPath.startsWith('/help/')) {
     return mapDetailLocalePath(cleanPath, '/help/', '/zh/help/', '/zh/help', translatedHelpSlugs);
+  }
+  if (cleanPath.startsWith('/features/')) {
+    return mapDetailLocalePath(
+      cleanPath,
+      '/features/',
+      '/zh/features/',
+      '/zh/features',
+      ZH_FEATURE_SLUGS
+    );
   }
   return '/zh';
 }

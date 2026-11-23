@@ -370,7 +370,7 @@ export default function HomePage() {
                   Multi-Format Online Preview
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                  Preview PDFs, Office documents, multi-sheet spreadsheets, Apple HEIC photos, and videos directly in any modern browser with zero client installs.
+                  Preview PDFs, Office documents, multi-sheet spreadsheets, images, and videos directly in any modern browser with zero client installs.
                 </p>
               </div>
 
