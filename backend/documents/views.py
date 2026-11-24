@@ -29,6 +29,7 @@ from .models import (
 )
 from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
                           FolderSerializer, DocumentVersionListSerializer,
+                          SyncFolderToDataroomsSerializer,
                           TrashItemSerializer, TrashRestoreResponseSerializer)
 from .fileserver import fileserver_client
 from .services import (
@@ -893,6 +894,19 @@ class FolderViewSet(viewsets.ModelViewSet):
             raise APIException("An unexpected error occurred: root folder missing.",
                                code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    def _get_synced_datarooms_context(self, folders, extra_context=None):
+        """
+        Precompute synced DataroomFolder references for a batch of folders so
+        FolderSerializer avoids N+1 queries (and stays a no-op under DocumentSerializer).
+        """
+        from datarooms.services import get_synced_datarooms_map_for_folders
+
+        synced_map = get_synced_datarooms_map_for_folders(folders, self.request.user)
+        context = {**self.get_serializer_context(), 'synced_datarooms_map': synced_map}
+        if extra_context:
+            context.update(extra_context)
+        return context
+
     def _get_folder_contents(self, folder, request):
         """Helper to fetch and serialize sub-folders and documents for a given folder."""
         logging.debug('get root folder contents...')
@@ -903,7 +917,11 @@ class FolderViewSet(viewsets.ModelViewSet):
         ).annotate(share_link_view_count=Count('share_links__view_sessions', distinct=True)))
         logging.debug(f'documents: {documents}')
 
-        sub_folders_serializer = FolderSerializer(sub_folders, many=True)
+        sub_folders_serializer = FolderSerializer(
+            sub_folders,
+            many=True,
+            context=self._get_synced_datarooms_context(sub_folders),
+        )
         sub_folders_data = sub_folders_serializer.data
         logging.debug(f'sub_folders_data: {sub_folders_data}')
         documents_serializer = DocumentSerializer(documents, many=True, context={'request': request})
@@ -933,7 +951,10 @@ class FolderViewSet(viewsets.ModelViewSet):
         """
         instance = self.get_object()
         contents = self._get_folder_contents(instance, request)
-        current_folder_serializer = self.get_serializer(instance)
+        current_folder_serializer = self.get_serializer(
+            instance,
+            context=self._get_synced_datarooms_context([instance]),
+        )
         return Response({
             'current_folder': current_folder_serializer.data,
             **contents,
@@ -971,12 +992,54 @@ class FolderViewSet(viewsets.ModelViewSet):
             target_folder = _get_accessible_list_folder(organization, request.user, folder_id)
             subtree_ids = _collect_subtree_folder_ids(target_folder, folder_parent_map)
             queryset = queryset.filter(parent_id__in=subtree_ids)
+        matched_folders = list(queryset.order_by('name', 'id')[:100])
         serializer = self.get_serializer(
-            queryset.order_by('name', 'id')[:100],
+            matched_folders,
             many=True,
-            context={**self.get_serializer_context(), 'folder_parent_map': folder_parent_map},
+            context=self._get_synced_datarooms_context(
+                matched_folders,
+                {'folder_parent_map': folder_parent_map},
+            ),
         )
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='sync-datarooms')
+    def sync_datarooms(self, request, pk=None):
+        """
+        Pushes updates from a personal Folder in /documents to all or selected linked DataroomFolders.
+        """
+        folder = self.get_object()
+        if folder.folder_type != Folder.FOLDER_TYPE_PERSONAL or folder.name == '__root__':
+            return Response(
+                {"detail": "Only personal folders can be synced to datarooms."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = SyncFolderToDataroomsSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        dataroom_folder_ids = serializer.validated_data.get('dataroom_folder_ids')
+
+        from datarooms.services import sync_source_folder_to_datarooms
+
+        try:
+            summary = sync_source_folder_to_datarooms(
+                folder,
+                request.user,
+                dataroom_folder_ids=dataroom_folder_ids,
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if summary['failed_count'] > 0 and summary['synced_count'] == 0:
+            first_error = summary['results'][0].get('detail', 'Failed to sync folder to datarooms.')
+            return Response(
+                {"detail": first_error, **summary},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(summary, status=status.HTTP_200_OK)
 
     def perform_create(self, serializer):
         parent = serializer.validated_data.get('parent')
@@ -993,6 +1056,21 @@ class FolderViewSet(viewsets.ModelViewSet):
             parent=parent
         )
         touch_folder_ancestors(folder.parent)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance,
+            data=request.data,
+            partial=partial,
+            context=self._get_synced_datarooms_context([instance]),
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+        return Response(serializer.data)
 
     def perform_update(self, serializer):
         parent = serializer.validated_data.get('parent')

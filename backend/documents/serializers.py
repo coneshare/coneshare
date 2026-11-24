@@ -22,11 +22,25 @@ class EnsureFolderPathsSerializer(serializers.Serializer):
 class FolderSerializer(serializers.ModelSerializer):
     ancestors = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
+    synced_datarooms = serializers.SerializerMethodField()
 
     class Meta:
         model = Folder
-        fields = ['id', 'name', 'parent', 'organization', 'created_at', 'updated_at', 'ancestors', 'is_starred', 'created_by']
-        read_only_fields = ['id', 'organization', 'created_at', 'updated_at', 'ancestors', 'created_by']
+        fields = [
+            'id', 'name', 'parent', 'organization', 'created_at', 'updated_at',
+            'ancestors', 'is_starred', 'created_by', 'synced_datarooms'
+        ]
+        read_only_fields = [
+            'id', 'organization', 'created_at', 'updated_at',
+            'ancestors', 'created_by', 'synced_datarooms'
+        ]
+
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
+    def get_synced_datarooms(self, obj) -> list[dict]:
+        synced_map = self.context.get('synced_datarooms_map')
+        if not synced_map:
+            return []
+        return synced_map.get(str(obj.id), [])
 
     @extend_schema_field(serializers.DictField(allow_null=True))
     def get_created_by(self, obj):
@@ -387,3 +401,11 @@ class TrashRestoreResponseSerializer(serializers.Serializer):
     name = serializers.CharField()
     original_name = serializers.CharField()
     was_renamed = serializers.BooleanField()
+
+
+class SyncFolderToDataroomsSerializer(serializers.Serializer):
+    dataroom_folder_ids = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_null=True,
+    )

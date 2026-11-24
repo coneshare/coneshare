@@ -1,7 +1,8 @@
-# Folder–Dataroom Bi-Directional Sync Plan (Phase 1 & Phase 2)
+# Folder-to-Dataroom Sync Plan (Push MVP)
 
-**Date:** 2026-10-30  
-**Status:** Proposed (Phase 1 & Phase 2)  
+**Date:** 2026-11-24  
+**Status:** Proposed (Streamlined Push MVP)  
+**Issue:** [#424](https://github.com/coneshare/coneshare/issues/424)  
 **Scope:** `backend/datarooms/`, `backend/documents/`, `frontend/src/components/documents/`, `frontend/src/components/dialogs/`, `frontend/src/pages/`
 
 ---
@@ -10,71 +11,89 @@
 
 When a user adds a folder from `/documents` to one or more Datarooms (`POST /api/v1/datarooms/{id}/add-content/`), `_replicate_folder_structure` currently performs a one-time snapshot copy into `DataroomFolder` and `DataroomDocument` records without retaining a reference to the source `Folder`. Users maintaining canonical folders shared across multiple Datarooms must manually add new files to each Dataroom individually.
 
-To prevent accidental live exposure while users are still staging files in `/documents` (matching DocSend's safety model) while eliminating repetitive multi-room updates, this plan introduces **explicit Folder–Dataroom linking with manual Push/Pull synchronization** in **Phase 1**, followed by **stateful out-of-sync detection and contextual UX** in **Phase 2**.
+To solve this directly without accidental live exposure while users are still staging files in `/documents`, this plan introduces **opt-in Folder-to-Dataroom linking with an explicit Push workflow from `/documents`**:
+
+- **Single source of truth & single action entry:** Users edit files in `/documents` and click **Sync to Datarooms** to push updates to all (or selected) linked Datarooms.
+- **Read-only awareness & safe detach in Datarooms:** Each linked `DataroomFolder` displays a subtle `Synced` indicator and sync-root folders can be safely **Unlinked** without touching any files.
+
+### Explicit Non-Goals (Avoided Over-Engineering)
+
+- **No separate Dataroom Pull workflow:** Avoids duplicate Push/Pull APIs, duplicate UI menus, and user confusion over where to trigger sync.
+- **No post-hoc arbitrary re-linking (`PATCH` `source_folder`):** Prevents destructive ambiguity around pre-existing files in an unrelated `DataroomFolder`. Sync links are created only when adding folders from `/documents` via `add-content`.
+- **No Phase 2 ancestor `updated_at` propagation / `out_of_sync` polling:** Avoids brittle cross-module timestamp coupling across all upload/move/rename/trash/MCP code paths in `backend/documents/`.
+- **No automatic background sync (`auto_sync`):** Preserves safe staging in `/documents` so half-finished edits are never exposed automatically. (`/documents` staging and `Push` govern folder-membership reconciliation—adding new files/subfolders or removing entries moved/deleted from the source folder; edits directly on an already-linked `Document` record, such as trashing it, continue to reflect immediately via `document__deleted_at__isnull=True` filtering.)
 
 ---
 
-## Phase 1: Model Changes & Bi-Directional Sync Workflows (Push & Pull)
+## Architecture & Implementation
 
-### 1. Data Model (`DataroomFolder` in `backend/datarooms/models.py`)
-- Add `source_folder = models.ForeignKey('documents.Folder', null=True, blank=True, on_delete=models.SET_NULL, related_name='synced_dataroom_folders')`
-- Add `is_synced = models.BooleanField(default=False, db_index=True)`
+### 1. Data Model (`backend/datarooms/models.py`)
 
-### 2. Shared Sync Engine (`backend/datarooms/services.py`)
-A single reconciliation function (`reconcile_dataroom_folder_with_source`) powers both **Push** and **Pull**:
+- **`DataroomFolder`:**
+  - `source_folder = models.ForeignKey('documents.Folder', null=True, blank=True, on_delete=models.SET_NULL, related_name='synced_dataroom_folders')`
+  - `is_synced = models.BooleanField(default=False, db_index=True)`
+  - `last_synced_at = models.DateTimeField(null=True, blank=True)` *(optional display timestamp only)*
+- **`DataroomDocument`:**
+  - `is_synced = models.BooleanField(default=False, db_index=True)`  
+    Distinguishes documents created/managed by folder sync (`is_synced=True, is_direct_upload=False`) from documents manually added into a Dataroom folder via `add-content` (`is_synced=False, is_direct_upload=False`) or uploaded directly into the Dataroom (`is_direct_upload=True`).
+- **Soft-Delete Behavior (`Folder.deleted_at`):**
+  - Moving a source `Folder` to Trash sets `deleted_at` rather than deleting the DB row, so `on_delete=models.SET_NULL` only clears `source_folder` when Trash is permanently emptied.
+  - Endpoints and serializers therefore treat `source_folder is None or source_folder.deleted_at is not None` as detached/unavailable (`is_synced` remains safe; Push Sync refuses trashed folders).
+
+### 2. Shared Sync Engine (`backend/datarooms/services.py` & `signals.py`)
+
+A single idempotent helper (`reconcile_dataroom_folder_with_source`) powers both initial synced replication in `add-content` and Push sync:
+
 - **Reconcile Tree (Idempotent):**
-  - Uses `.active()` (`deleted_at__isnull=True`) queries on `source_folder.documents` and `source_folder.children` so trashed items are never synced.
-  - Matches existing child `DataroomFolder`s by `(dataroom, parent, source_folder)` and creates missing subfolders (`source_folder=subfolder, is_synced=True`).
-  - Matches existing `DataroomDocument`s by `(dataroom, folder, document)` and creates missing entries (`is_direct_upload=False`), appending `DataroomItemOrder` rows when custom scope ordering exists.
-  - Removes `DataroomDocument` entries where `is_direct_upload=False` if the document was deleted or moved out of `source_folder`.
-- **Preserve Room Files:** Never touches files uploaded directly into the Dataroom (`is_direct_upload=True`).
+  - Queries `.active()` (`deleted_at__isnull=True`) documents and subfolders on `source_folder` owned by the requesting user (`created_by`).
+  - Matches existing child `DataroomFolder`s by `(dataroom, parent, source_folder, is_synced=True)`.
+  - When creating a missing subfolder (`source_folder=subfolder, is_synced=True, last_synced_at=now`), deduplicates its name via `_get_unique_dataroom_folder_name` so it never collides with an existing local folder, and appends a `DataroomItemOrder` row when custom scope ordering exists.
+  - Matches existing `DataroomDocument`s by `(dataroom, folder, document)` and creates missing entries (`is_direct_upload=False, is_synced=True`) with unique names (`_get_unique_dataroom_document_name`) and `DataroomItemOrder` rows.
+  - Updates `last_synced_at` on reconciled `DataroomFolder`s.
+- **Safe Pruning & Local File Preservation:**
+  - Removes stale synced `DataroomDocument` records (`is_synced=True, is_direct_upload=False`) whose `document` was deleted or moved out of `source_folder`.
+  - **Never deletes** files uploaded directly into the Dataroom (`is_direct_upload=True`) or documents added manually outside folder sync (`is_synced=False`).
+  - Removes stale synced child `DataroomFolder`s (`is_synced=True`) only if they contain no local/manual items (`is_direct_upload=True` or `is_synced=False`); otherwise detaches/keeps the subfolder (`is_synced=False, source_folder=None`) so local Dataroom content is never lost.
 - **Guardrails:**
-  - Acquires `select_for_update()` on target `Dataroom`(s) in deterministic ID order (`order_by('id')`) and enforces `dataroom.storage_quota_mb`.
-  - In `backend/datarooms/signals.py`, inherits `ShareLinkDataroomSetting` visibility (`is_visible`, `allow_download`, `enable_watermark`) from the parent `DataroomFolder` on each ShareLink so hidden folders stay hidden.
+  - Acquires `select_for_update()` on target `Dataroom`(s) in deterministic ID order (`order_by('id')`).
+  - Enforces `dataroom.storage_quota_mb` mirroring `add_content` and `get_dataroom_storage_used_bytes` (counting unique `document_id`s across the Dataroom), computing the net storage delta accounting for stale synced documents removed during the same reconciliation (or pruning before adding) so replacing a file does not falsely trip the quota.
+  - In `backend/datarooms/signals.py`: `ShareLinkDataroomSetting` stores three concrete non-nullable booleans (`is_visible`, `allow_download`, `enable_watermark`). When creating `ShareLinkDataroomSetting` for a newly created `DataroomFolder` or `DataroomDocument` inside a parent `DataroomFolder`, copy all three booleans from the parent `DataroomFolder`'s `ShareLinkDataroomSetting` row for that `ShareLink` when present, falling back to `(True, link.allow_download, link.enable_watermark)` at the dataroom root or when no parent row exists.
 
-### 3. Two Sync Workflows (Backend + Frontend)
+### 3. Backend API Endpoints (`backend/datarooms/` & `backend/documents/`)
 
-#### Workflow 1: Folder Side — Push Changes to Datarooms (`/documents`)
-- **Backend:**
-  - Expose `synced_datarooms` (`[{ dataroom_id, dataroom_name, dataroom_folder_id }]`) on `FolderSerializer` (prefetched via `Prefetch('synced_dataroom_folders', queryset=DataroomFolder.objects.filter(is_synced=True).select_related('dataroom'))` to avoid N+1 queries).
-  - Add `POST /api/v1/folders/{id}/sync-datarooms/` (accepts optional `dataroom_folder_ids` to push to selected or all linked Datarooms).
-- **Frontend (`DraggableItem.jsx`, `ActionsDropdown.jsx`):**
-  - **Compact Badge:** Show a badge (`🔄 N`) next to the folder name when `item.synced_datarooms?.length > 0`.
-  - **Hover Tooltip:** Lists the linked Dataroom names (*"Synced with Datarooms: • Series A Due Diligence ..."*).
-  - **Action Menu (`⋮`):** Add **"Sync to Datarooms"** (`RefreshCw` icon) to push changes to some or all linked Datarooms.
+*(Note: Keep cross-app imports from `datarooms` inside functions/methods in `backend/documents/`, matching `backend/documents/services.py`, to avoid circular imports.)*
 
-#### Workflow 2: DataroomFolder Side — Link / Unlink & Pull Changes (`/datarooms/:id`)
-- **Backend:**
-  - On `POST /api/v1/datarooms/{id}/add-content/`, accept `sync_folders` (boolean) and populate `source_folder` and `is_synced=True` when enabled.
-  - Support linking/unlinking via `PATCH /api/v1/dataroom-folders/{id}/` (`source_folder`, `is_synced`, validating that `source_folder` is an active personal folder owned by `request.user`) and pulling via `POST /api/v1/dataroom-folders/{id}/pull-sync/`.
-- **Frontend (`AddContentDialog.jsx`, `DataroomPage.jsx`):**
-  - Add a *"Keep folder synced with Documents"* checkbox in `AddContentDialog.jsx` when folders are selected.
-  - Show a `Synced` badge on linked `DataroomFolder` rows (with tooltip showing the source `/documents` folder name).
-  - Add `⋮` menu actions on `DataroomFolder` to **Pull from Documents** and **Link / Unlink Folder**.
+1. **Create Sync Link on Add Content (`POST /api/v1/datarooms/{id}/add-content/`):**
+   - Accept optional `sync_folders` boolean (default `False`).
+   - When `sync_folders=True`, replicated `DataroomFolder`s store `source_folder`, `is_synced=True`, `last_synced_at`, and their replicated `DataroomDocument`s store `is_synced=True`.
+2. **Expose Linked References on Source Folders (`FolderSerializer` in `backend/documents/`):**
+   - Expose `synced_datarooms`:  
+     `[{ dataroom_id, dataroom_name, dataroom_folder_id, dataroom_folder_path, last_synced_at }]`
+   - **No N+1 / Context-Gated:** `DocumentSerializer` embeds `folder = FolderSerializer(read_only=True)` on every serialized document. Only compute/populate `synced_datarooms` when explicitly enabled via serializer context (`synced_datarooms_map` precomputed by folder list/detail views); return `[]` otherwise so `DocumentViewSet` and upload responses run zero extra queries.
+   - **Access Filtering & Batch Path Resolution:** `Dataroom` is hard-deleted (no soft-delete/inactive flag), so scope `DataroomFolder` lookups strictly with `dataroom__in=get_dataroom_queryset_for_user(request.user)` and `is_synced=True`. Resolve `dataroom_folder_path` in batch from a single query of `(id, name, parent_id, dataroom_id)` across referenced Datarooms instead of calling `DataroomFolder.get_full_path()` per folder.
+3. **Expose Sync Metadata on Dataroom Folders (`DataroomFolderSerializer` in `backend/datarooms/`):**
+   - Expose `is_synced`, `source_folder`, `source_folder_name` (retained when trashed so tooltips can name the folder alongside `source_folder_deleted: true`), `source_folder_deleted` (boolean), `is_sync_root` (boolean: `is_synced and (parent is None or not parent.is_synced)`), and `last_synced_at`.
+   - Enforce single-tree sync isolation: forbid adding or moving independent synced folders inside an already-synced folder tree, and forbid moving non-root synced subfolders outside their synced parent.
+   - Add `select_related('source_folder', 'parent')` on Dataroom folder listing, search, and `DataroomFolderViewSet` querysets.
+4. **Push Sync (`POST /api/v1/folders/{id}/sync-datarooms/`):**
+   - Validates `folder.created_by == request.user` and `folder.deleted_at is None` (reject trashed source folders).
+   - Accepts optional `dataroom_folder_ids` list to push to selected linked Datarooms, or pushes to all linked `DataroomFolder`s matching `source_folder=folder`, `is_synced=True`, and `dataroom__in=get_dataroom_queryset_for_user(request.user)` (supporting Dataroom owners, active collaborators, and org admins while excluding removed collaborators).
+   - Returns a per-Dataroom summary (`added`, `removed`, `skipped` / quota error if any).
+5. **Safe Sync-Root Detach (`POST /api/v1/dataroom-folders/{id}/unlink/`):**
+   - Validates Dataroom access via `get_dataroom_queryset_for_user(request.user)`.
+   - Only allowed on **sync roots** (`is_synced=True` and `parent` is `None` or `not parent.is_synced`); returns `400 Bad Request` for synced child subfolders to prevent duplicate re-creation on the next parent Push.
+   - Recursively detaches the entire synced descendant subtree (`is_synced=False`, `source_folder=None` on the root and all synced descendant `DataroomFolder`s; `is_synced=False` on all synced `DataroomDocument`s in that subtree) without deleting any files.
 
----
+### 4. Frontend Workflows
 
-## Phase 2: Sync Status Tracking & Smart UX
+*(Include all 6 locale catalogs in `frontend/src/locales/{de,en,fr,nl,ru,zh-hans}/translation.json` with no inline `defaultValue`, and add new test files to `frontend/vitest.whitelist.json`.)*
 
-### 1. Data Model & Timestamp Propagation
-- **Model (`DataroomFolder`):** Add `last_synced_at = models.DateTimeField(null=True, blank=True)` (updated on initial `add-content` and whenever Push or Pull runs).
-- **Source Folder Touching (`backend/documents/`):** Whenever a document or subfolder is added, moved, renamed, or deleted inside a `/documents` `Folder`, touch `folder.updated_at` (and its ancestor folders' `updated_at`).
-
-### 2. $O(1)$ Sync Status Evaluation
-Compute `sync_status` on `DataroomFolderSerializer` and `FolderSerializer` by comparing `last_synced_at` vs. `source_folder.updated_at`:
-- **`synced`**: `last_synced_at >= source_folder.updated_at` (Up to date)
-- **`out_of_sync`**: `source_folder.updated_at > last_synced_at` (Source folder has newer changes)
-- **`source_deleted`**: `source_folder.deleted_at is not None` (Source folder moved to Trash)
-
-### 3. Stateful Badges & Contextual Banner (Frontend)
-1. **Dynamic Status Badge on `DataroomFolder` (`/datarooms/:id`):**
-   - `synced` → Subtle emerald/neutral badge (`✓ Synced`)
-   - `out_of_sync` → Highlighted amber/blue badge (`🔄 Updates available` — clicking it immediately pulls changes)
-   - `source_deleted` → Muted warning badge (`⚠️ Source in Trash` — clicking it prompts to unlink)
-2. **Dynamic Status Badge on `Folder` (`/documents`):**
-   - Highlights when any linked Dataroom has `last_synced_at < folder.updated_at` (`🔄 2 need sync` — clicking opens the Push modal).
-3. **In-Folder Contextual Sync Banner (`/documents/folders/:folderId`):**
-   - When the user is inside a linked `/documents` folder and drops new files into it, show a slim banner at the top of the list:
-     > 🔄 **Linked to N Datarooms** — **[Push changes now]**
-4. **Optional Auto-Sync Mode (Future Opt-in):**
-   - Optional per-folder toggle to auto-propagate changes in the background via Celery when `auto_sync=True`.
+1. **Opt-in Checkbox (`frontend/src/components/dialogs/AddContentDialog.jsx`):**
+   - When folders are selected, show a *"Keep folder synced with Documents"* checkbox (`sync_folders`).
+2. **Source Folder Visibility & Push (`DraggableItem.jsx`, `ActionsDropdown.jsx`, Sync Dialog in `/documents`):**
+   - **Compact Badge:** When `item.synced_datarooms?.length > 0`, show a compact badge (`🔄 N`) next to the folder name. Unlinked folders show nothing.
+   - **Hover Tooltip:** Lists the referencing Datarooms and folder paths (e.g., `Series A Due Diligence · /Legal`).
+   - **Action Menu (`⋮`) & Sync Dialog:** When `synced_datarooms.length > 0`, show **"Sync to Datarooms"** (`RefreshCw` icon). Opening it shows the referencing Datarooms + folder paths (with last synced time) and lets the user push to all or selected Datarooms.
+3. **Dataroom Folder Indicator & Unlink (`DataroomPage.jsx`):**
+   - Show a subtle read-only `Synced` badge on linked `DataroomFolder` rows (tooltip shows source `/documents` folder name, or warns when source folder is in Trash).
+   - Provide **"Unlink from Documents"** in the `⋮` action menu on sync-root folders (`is_sync_root=true`) to detach the synced subtree safely (no Pull action, no re-link dialog).
