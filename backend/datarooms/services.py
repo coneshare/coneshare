@@ -5,14 +5,18 @@ from django.db import transaction
 from django.db.models import Q, Sum
 from django.utils import timezone
 
+from backend.utils import get_unique_name
 from core.models import User
 from documents.models import Folder, Document
 from documents.services import (
-    delete_document_and_files, _get_unique_document_name, _get_unique_folder_name,
-    recalculate_user_document_size
+    QuotaExceededError,
+    delete_document_and_files,
+    _get_unique_document_name,
+    _get_unique_folder_name,
+    recalculate_user_document_size,
 )
 
-from .models import Dataroom, DataroomDocument, DataroomFolder
+from .models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
 from .utils import get_dataroom_storage_folder_name
 
 logger = logging.getLogger(__name__)
@@ -584,4 +588,584 @@ def get_dataroom_storage_used_bytes(dataroom: Dataroom) -> int:
         id__in=doc_ids,
         deleted_at__isnull=True
     ).aggregate(total=Sum('file_size'))['total'] or 0
+
+
+def get_dataroom_queryset_for_user(user):
+    """
+    Returns the queryset of datarooms accessible to a given user:
+    - If user is an org admin: all datarooms in their organization.
+    - Otherwise: datarooms created by the user OR where the user is a collaborator.
+    """
+    if getattr(user, 'role', '') == 'admin':
+        return Dataroom.objects.filter(organization=user.organization)
+    return Dataroom.objects.filter(
+        Q(created_by=user) | Q(collaborators__user=user),
+        organization=user.organization
+    ).distinct()
+
+
+def _scope_has_item_order_rows(dataroom: Dataroom, parent_folder: DataroomFolder | None) -> bool:
+    return DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=parent_folder).exists()
+
+
+def _append_item_order(
+    dataroom: Dataroom,
+    parent_folder: DataroomFolder | None,
+    item_type: str,
+    folder: DataroomFolder | None = None,
+    dataroom_document: DataroomDocument | None = None,
+):
+    current_max = (
+        DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=parent_folder)
+        .order_by('-position')
+        .values_list('position', flat=True)
+        .first()
+    )
+    next_position = (current_max + 1) if current_max is not None else 0
+    DataroomItemOrder.objects.create(
+        dataroom=dataroom,
+        parent_folder=parent_folder,
+        item_type=item_type,
+        folder=folder,
+        dataroom_document=dataroom_document,
+        position=next_position,
+    )
+
+
+def _get_unique_dataroom_folder_name(dataroom: Dataroom, parent_folder: DataroomFolder | None, original_name: str) -> str:
+    return get_unique_name(
+        DataroomFolder,
+        original_name,
+        {'dataroom': dataroom, 'parent': parent_folder},
+        has_extension=False,
+    )
+
+
+def _get_unique_dataroom_document_name(dataroom: Dataroom, parent_folder: DataroomFolder | None, original_name: str) -> str:
+    return get_unique_name(
+        DataroomDocument,
+        original_name,
+        {'dataroom': dataroom, 'folder': parent_folder},
+        has_extension=True,
+    )
+
+
+def _collect_subtree_active_document_ids(source_folder: Folder, owner_user) -> set:
+    """Collect active document IDs under source_folder (inclusive) owned by owner_user."""
+    collected = set()
+    stack = [source_folder]
+    visited = set()
+    while stack:
+        curr = stack.pop()
+        if not curr or curr.id in visited:
+            continue
+        visited.add(curr.id)
+        collected.update(
+            curr.documents.active().filter(created_by=owner_user).values_list('id', flat=True)
+        )
+        stack.extend(list(curr.children.active().filter(created_by=owner_user)))
+    return collected
+
+
+def _populate_dataroom_folder_contents(
+    dataroom: Dataroom,
+    dataroom_folder: DataroomFolder,
+    source_folder: Folder,
+    requesting_user,
+    sync_enabled: bool = False,
+    now=None,
+) -> dict[str, int]:
+    """
+    Populates missing active documents and subfolders from source_folder into dataroom_folder.
+    When sync_enabled=True, newly created folders and documents are marked synced.
+    """
+    now = now or timezone.now()
+    stats = {'added_folders': 0, 'added_documents': 0}
+
+    existing_doc_ids = set(
+        DataroomDocument.objects.filter(
+            dataroom=dataroom,
+            folder=dataroom_folder,
+        ).values_list('document_id', flat=True)
+    )
+    track_order = _scope_has_item_order_rows(dataroom, dataroom_folder)
+
+    for doc in source_folder.documents.active().filter(created_by=requesting_user).order_by('created_at', 'id'):
+        if doc.id in existing_doc_ids:
+            continue
+        unique_name = _get_unique_dataroom_document_name(dataroom, dataroom_folder, doc.name)
+        created_doc = DataroomDocument.objects.create(
+            dataroom=dataroom,
+            document=doc,
+            folder=dataroom_folder,
+            name=unique_name,
+            is_direct_upload=False,
+            is_synced=sync_enabled,
+        )
+        existing_doc_ids.add(doc.id)
+        stats['added_documents'] += 1
+        if track_order:
+            _append_item_order(
+                dataroom=dataroom,
+                parent_folder=dataroom_folder,
+                item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
+                dataroom_document=created_doc,
+            )
+
+    existing_synced_children = {}
+    if sync_enabled:
+        existing_synced_children = {
+            cf.source_folder_id: cf
+            for cf in DataroomFolder.objects.filter(
+                dataroom=dataroom,
+                parent=dataroom_folder,
+                is_synced=True,
+                source_folder__isnull=False,
+            ).order_by('created_at', 'id')
+        }
+
+    for subfolder in source_folder.children.active().filter(created_by=requesting_user).order_by('created_at', 'id'):
+        child_dfolder = existing_synced_children.get(subfolder.id) if sync_enabled else None
+        if child_dfolder is None:
+            folder_name = _get_unique_dataroom_folder_name(dataroom, dataroom_folder, subfolder.name)
+            child_dfolder = DataroomFolder.objects.create(
+                dataroom=dataroom,
+                name=folder_name,
+                parent=dataroom_folder,
+                created_by=requesting_user or getattr(subfolder, 'created_by', None) or dataroom.created_by,
+                source_folder=subfolder if sync_enabled else None,
+                is_synced=sync_enabled,
+                last_synced_at=now if sync_enabled else None,
+            )
+            stats['added_folders'] += 1
+            if track_order:
+                _append_item_order(
+                    dataroom=dataroom,
+                    parent_folder=dataroom_folder,
+                    item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
+                    folder=child_dfolder,
+                )
+        elif sync_enabled:
+            DataroomFolder.objects.filter(id=child_dfolder.id).update(last_synced_at=now, updated_at=now)
+
+        sub_stats = _populate_dataroom_folder_contents(
+            dataroom=dataroom,
+            dataroom_folder=child_dfolder,
+            source_folder=subfolder,
+            requesting_user=requesting_user,
+            sync_enabled=sync_enabled,
+            now=now,
+        )
+        stats['added_folders'] += sub_stats['added_folders']
+        stats['added_documents'] += sub_stats['added_documents']
+
+    return stats
+
+
+def replicate_folder_to_dataroom(
+    dataroom: Dataroom,
+    source_folder: Folder,
+    parent_dataroom_folder: DataroomFolder | None,
+    requesting_user,
+    sync_enabled: bool = False,
+    now=None,
+) -> DataroomFolder:
+    """
+    Replicates a personal workspace folder and its active contents into a Dataroom.
+    """
+    now = now or timezone.now()
+    folder_name = (
+        _get_unique_dataroom_folder_name(dataroom, parent_dataroom_folder, source_folder.name)
+        if sync_enabled
+        else source_folder.name
+    )
+    new_dataroom_folder = DataroomFolder.objects.create(
+        dataroom=dataroom,
+        name=folder_name,
+        parent=parent_dataroom_folder,
+        created_by=requesting_user or getattr(source_folder, 'created_by', None) or dataroom.created_by,
+        source_folder=source_folder if sync_enabled else None,
+        is_synced=sync_enabled,
+        last_synced_at=now if sync_enabled else None,
+    )
+    if _scope_has_item_order_rows(dataroom, parent_dataroom_folder):
+        _append_item_order(
+            dataroom=dataroom,
+            parent_folder=parent_dataroom_folder,
+            item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
+            folder=new_dataroom_folder,
+        )
+
+    _populate_dataroom_folder_contents(
+        dataroom=dataroom,
+        dataroom_folder=new_dataroom_folder,
+        source_folder=source_folder,
+        requesting_user=requesting_user,
+        sync_enabled=sync_enabled,
+        now=now,
+    )
+    return new_dataroom_folder
+
+
+def _prune_stale_synced_subtree(dataroom: Dataroom, stale_folder: DataroomFolder) -> dict[str, int]:
+    """
+    Recursively prunes synced entries from a stale subfolder that no longer exists in source_folder.
+    Preserves any local/direct-upload or manually-added items and detaches folders containing them.
+    """
+    stats = {'removed_folders': 0, 'removed_documents': 0}
+
+    for child in list(stale_folder.children.all()):
+        if child.is_synced:
+            child_stats = _prune_stale_synced_subtree(dataroom, child)
+            stats['removed_folders'] += child_stats['removed_folders']
+            stats['removed_documents'] += child_stats['removed_documents']
+
+    deleted_docs, _ = DataroomDocument.objects.filter(
+        dataroom=dataroom,
+        folder=stale_folder,
+        is_synced=True,
+        is_direct_upload=False,
+    ).delete()
+    stats['removed_documents'] += deleted_docs
+
+    has_remaining_items = (
+        DataroomDocument.objects.filter(dataroom=dataroom, folder=stale_folder).exists()
+        or DataroomFolder.objects.filter(dataroom=dataroom, parent=stale_folder).exists()
+    )
+    if not has_remaining_items:
+        stale_folder.delete()
+        stats['removed_folders'] += 1
+    else:
+        DataroomFolder.objects.filter(id=stale_folder.id).update(
+            is_synced=False,
+            source_folder=None,
+            last_synced_at=None,
+        )
+
+    return stats
+
+
+def _prune_dataroom_folder_against_source(
+    dataroom: Dataroom,
+    dataroom_folder: DataroomFolder,
+    source_folder: Folder,
+    requesting_user,
+) -> dict[str, int]:
+    """
+    Prunes stale synced documents and subfolders under dataroom_folder against source_folder.
+    """
+    stats = {'removed_folders': 0, 'removed_documents': 0}
+
+    active_doc_ids = set(
+        source_folder.documents.active().filter(created_by=requesting_user).values_list('id', flat=True)
+    )
+    deleted_docs, _ = (
+        DataroomDocument.objects.filter(
+            dataroom=dataroom,
+            folder=dataroom_folder,
+            is_synced=True,
+            is_direct_upload=False,
+        )
+        .exclude(document_id__in=active_doc_ids)
+        .delete()
+    )
+    stats['removed_documents'] += deleted_docs
+
+    active_subfolders_by_id = {
+        sf.id: sf for sf in source_folder.children.active().filter(created_by=requesting_user)
+    }
+    matched_source_ids = set()
+    for child_dfolder in list(
+        DataroomFolder.objects.filter(dataroom=dataroom, parent=dataroom_folder, is_synced=True).order_by('created_at', 'id')
+    ):
+        source_sub = active_subfolders_by_id.get(child_dfolder.source_folder_id)
+        if source_sub is not None and source_sub.id not in matched_source_ids:
+            matched_source_ids.add(source_sub.id)
+            child_stats = _prune_dataroom_folder_against_source(
+                dataroom=dataroom,
+                dataroom_folder=child_dfolder,
+                source_folder=source_sub,
+                requesting_user=requesting_user,
+            )
+            stats['removed_folders'] += child_stats['removed_folders']
+            stats['removed_documents'] += child_stats['removed_documents']
+        else:
+            prune_stats = _prune_stale_synced_subtree(dataroom, child_dfolder)
+            stats['removed_folders'] += prune_stats['removed_folders']
+            stats['removed_documents'] += prune_stats['removed_documents']
+
+    return stats
+
+
+def reconcile_dataroom_folder_with_source(
+    dataroom: Dataroom,
+    dataroom_folder: DataroomFolder,
+    source_folder: Folder,
+    requesting_user,
+    now=None,
+) -> dict[str, int]:
+    """
+    Reconciles a synced DataroomFolder subtree with its source Folder under an active
+    Dataroom row lock and atomic transaction. Raises QuotaExceededError if net additions
+    exceed dataroom.storage_quota_mb (rolling back any pruning in the savepoint).
+    """
+    now = now or timezone.now()
+
+    prune_stats = _prune_dataroom_folder_against_source(
+        dataroom=dataroom,
+        dataroom_folder=dataroom_folder,
+        source_folder=source_folder,
+        requesting_user=requesting_user,
+    )
+
+    if dataroom.storage_quota_mb and dataroom.storage_quota_mb > 0:
+        desired_doc_ids = _collect_subtree_active_document_ids(source_folder, requesting_user)
+        existing_doc_ids = set(
+            DataroomDocument.objects.filter(dataroom=dataroom).values_list('document_id', flat=True)
+        )
+        unique_added_ids = desired_doc_ids - existing_doc_ids
+        additional_bytes = (
+            Document.objects.filter(id__in=unique_added_ids, deleted_at__isnull=True)
+            .aggregate(total=Sum('file_size'))['total']
+            or 0
+        )
+        current_usage = get_dataroom_storage_used_bytes(dataroom)
+        room_quota_bytes = dataroom.storage_quota_mb * 1024 * 1024
+        if current_usage + additional_bytes > room_quota_bytes:
+            raise QuotaExceededError(
+                f"Syncing this folder would exceed the Dataroom storage limit of {dataroom.storage_quota_mb} MB."
+            )
+
+    add_stats = _populate_dataroom_folder_contents(
+        dataroom=dataroom,
+        dataroom_folder=dataroom_folder,
+        source_folder=source_folder,
+        requesting_user=requesting_user,
+        sync_enabled=True,
+        now=now,
+    )
+
+    DataroomFolder.objects.filter(id=dataroom_folder.id).update(last_synced_at=now, updated_at=now)
+    touch_dataroom_folder_ancestors(dataroom_folder)
+
+    return {
+        'added_folders': add_stats['added_folders'],
+        'added_documents': add_stats['added_documents'],
+        'removed_folders': prune_stats['removed_folders'],
+        'removed_documents': prune_stats['removed_documents'],
+    }
+
+
+def get_synced_datarooms_map_for_folders(folders, user) -> dict[str, list[dict]]:
+    """
+    Batch-resolves synced DataroomFolder references for a collection of source Folders,
+    scoped to Datarooms currently accessible to `user`, with zero N+1 path queries.
+    """
+    folder_ids = [
+        f.id for f in folders
+        if f is not None and getattr(f, 'deleted_at', None) is None
+    ]
+    if not folder_ids or not user or not user.is_authenticated:
+        return {}
+
+    accessible_datarooms = get_dataroom_queryset_for_user(user)
+    linked_folders = list(
+        DataroomFolder.objects.filter(
+            source_folder_id__in=folder_ids,
+            is_synced=True,
+            dataroom__in=accessible_datarooms,
+        )
+        .select_related('dataroom')
+        .order_by('dataroom__name', 'name', 'id')
+    )
+    if not linked_folders:
+        return {}
+
+    dataroom_ids = {df.dataroom_id for df in linked_folders}
+    nodes_by_room: dict[str, dict[str, dict]] = {}
+    for row in DataroomFolder.objects.filter(dataroom_id__in=dataroom_ids).values(
+        'id', 'name', 'parent_id', 'dataroom_id'
+    ):
+        nodes_by_room.setdefault(str(row['dataroom_id']), {})[str(row['id'])] = row
+
+    result_map: dict[str, list[dict]] = {}
+    for df in linked_folders:
+        room_nodes = nodes_by_room.get(str(df.dataroom_id), {})
+        parts = []
+        visited = set()
+        curr_id = str(df.id)
+        while curr_id and curr_id not in visited:
+            node = room_nodes.get(curr_id)
+            if not node:
+                break
+            visited.add(curr_id)
+            parts.append(node['name'])
+            parent_id = node.get('parent_id')
+            curr_id = str(parent_id) if parent_id else None
+        parts.reverse()
+        path_str = '/' + '/'.join(parts) if parts else f'/{df.name}'
+
+        result_map.setdefault(str(df.source_folder_id), []).append({
+            'dataroom_id': str(df.dataroom_id),
+            'dataroom_name': df.dataroom.name,
+            'dataroom_folder_id': str(df.id),
+            'dataroom_folder_path': path_str,
+            'last_synced_at': df.last_synced_at.isoformat() if df.last_synced_at else None,
+        })
+
+    return result_map
+
+
+def sync_source_folder_to_datarooms(
+    source_folder: Folder,
+    user,
+    dataroom_folder_ids: list[str] | None = None,
+) -> dict:
+    """
+    Pushes changes from an active personal Folder to all or selected linked DataroomFolders.
+    Locks target Datarooms in deterministic ID order and isolates failures per Dataroom.
+    """
+    accessible_datarooms = get_dataroom_queryset_for_user(user)
+    linked_qs = (
+        DataroomFolder.objects.filter(
+            source_folder=source_folder,
+            is_synced=True,
+            dataroom__in=accessible_datarooms,
+        )
+        .select_related('dataroom')
+        .order_by('dataroom_id', 'created_at', 'id')
+    )
+
+    if dataroom_folder_ids is not None:
+        requested_ids = list(dict.fromkeys(str(fid) for fid in dataroom_folder_ids if fid))
+        if not requested_ids:
+            raise ValueError("At least one dataroom folder must be selected.")
+        targets = list(linked_qs.filter(id__in=requested_ids))
+        if len(targets) != len(requested_ids):
+            raise ValueError("One or more selected dataroom folders are not linked to this folder or are inaccessible.")
+    else:
+        targets = list(linked_qs)
+
+    if not targets:
+        return {
+            'synced_count': 0,
+            'failed_count': 0,
+            'results': [],
+        }
+
+    targets_by_room: dict[str, list[DataroomFolder]] = {}
+    for df in targets:
+        targets_by_room.setdefault(str(df.dataroom_id), []).append(df)
+
+    now = timezone.now()
+    results = []
+    synced_count = 0
+    failed_count = 0
+
+    for dataroom_id in sorted(targets_by_room.keys()):
+        room_targets = targets_by_room[dataroom_id]
+        room_results = []
+        try:
+            with transaction.atomic():
+                locked_dataroom = Dataroom.objects.select_for_update().get(id=dataroom_id)
+                for target_df in room_targets:
+                    fresh_df = (
+                        DataroomFolder.objects.filter(
+                            id=target_df.id,
+                            dataroom=locked_dataroom,
+                            source_folder=source_folder,
+                            is_synced=True,
+                        )
+                        .select_related('parent')
+                        .first()
+                    )
+                    if not fresh_df:
+                        continue
+                    stats = reconcile_dataroom_folder_with_source(
+                        dataroom=locked_dataroom,
+                        dataroom_folder=fresh_df,
+                        source_folder=source_folder,
+                        requesting_user=user,
+                        now=now,
+                    )
+                    room_results.append({
+                        'dataroom_id': str(locked_dataroom.id),
+                        'dataroom_name': locked_dataroom.name,
+                        'dataroom_folder_id': str(fresh_df.id),
+                        'status': 'synced',
+                        'last_synced_at': now.isoformat(),
+                        **stats,
+                    })
+            results.extend(room_results)
+            synced_count += len(room_results)
+        except QuotaExceededError as e:
+            for target_df in room_targets:
+                failed_count += 1
+                results.append({
+                    'dataroom_id': str(target_df.dataroom_id),
+                    'dataroom_name': target_df.dataroom.name,
+                    'dataroom_folder_id': str(target_df.id),
+                    'status': 'error',
+                    'detail': str(e),
+                })
+
+    return {
+        'synced_count': synced_count,
+        'failed_count': failed_count,
+        'results': results,
+    }
+
+
+def unlink_dataroom_folder(dataroom_folder: DataroomFolder) -> DataroomFolder:
+    """
+    Safely detaches a sync-root DataroomFolder and its synced descendant subtree
+    from source Folders without deleting any files or folders.
+    """
+    with transaction.atomic():
+        locked_dataroom = Dataroom.objects.select_for_update().get(id=dataroom_folder.dataroom_id)
+        locked_root = DataroomFolder.objects.select_related('parent', 'dataroom').get(
+            id=dataroom_folder.id,
+            dataroom=locked_dataroom,
+        )
+        if not locked_root.is_synced:
+            raise ValueError("This folder is not synced with Documents.")
+        if locked_root.parent_id and locked_root.parent and locked_root.parent.is_synced:
+            raise ValueError("Only top-level synced folders can be unlinked. Unlink the parent synced folder instead.")
+
+        subtree_ids = [locked_root.id]
+        queue = [locked_root.id]
+        visited = {locked_root.id}
+        while queue:
+            child_ids = list(
+                DataroomFolder.objects.filter(dataroom=locked_dataroom, parent_id__in=queue)
+                .values_list('id', flat=True)
+            )
+            next_queue = []
+            for cid in child_ids:
+                if cid not in visited:
+                    visited.add(cid)
+                    subtree_ids.append(cid)
+                    next_queue.append(cid)
+            queue = next_queue
+
+        now = timezone.now()
+        DataroomFolder.objects.filter(
+            dataroom=locked_dataroom,
+            id__in=subtree_ids,
+            is_synced=True,
+        ).update(
+            is_synced=False,
+            source_folder=None,
+            last_synced_at=None,
+            updated_at=now,
+        )
+        DataroomDocument.objects.filter(
+            dataroom=locked_dataroom,
+            folder_id__in=subtree_ids,
+            is_synced=True,
+        ).update(is_synced=False, updated_at=now)
+
+        touch_dataroom_folder_ancestors(locked_root)
+        locked_root.refresh_from_db()
+        return locked_root
 

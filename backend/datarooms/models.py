@@ -122,6 +122,15 @@ class DataroomFolder(BaseModel):
         related_name='dataroom_folders_created'
     )
     is_starred = models.BooleanField(default=False)
+    source_folder = models.ForeignKey(
+        'documents.Folder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='synced_dataroom_folders'
+    )
+    is_synced = models.BooleanField(default=False, db_index=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
 
     def get_full_path(self):
         """
@@ -156,6 +165,7 @@ class DataroomDocument(BaseModel):
         db_index=True,
         help_text="True if directly uploaded into Dataroom, False if linked from user workspace, None for legacy records."
     )
+    is_synced = models.BooleanField(default=False, db_index=True)
 
     class Meta:
         unique_together = ('dataroom', 'document', 'folder')

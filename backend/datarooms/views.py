@@ -42,10 +42,13 @@ from .models import (
 )
 from .services import (
     delete_dataroom,
+    get_dataroom_queryset_for_user,
     remove_dataroom_content,
+    replicate_folder_to_dataroom,
     touch_dataroom,
     touch_dataroom_folder_ancestors,
     get_or_create_dataroom_storage_folder,
+    unlink_dataroom_folder,
     upgrade_dataroom_to_v2,
     sync_dataroom_rename,
     sync_dataroom_folder_rename,
@@ -101,20 +104,6 @@ def _folder_chain(folder_id, folder_map):
         current_id = str(parent_id) if parent_id else None
     parts.reverse()
     return parts
-
-
-def get_dataroom_queryset_for_user(user):
-    """
-    Returns the queryset of datarooms accessible to a given user:
-    - If user is an org admin: all datarooms in their organization.
-    - Otherwise: datarooms created by the user OR where the user is a collaborator.
-    """
-    if getattr(user, 'role', '') == 'admin':
-        return Dataroom.objects.filter(organization=user.organization)
-    return Dataroom.objects.filter(
-        Q(created_by=user) | Q(collaborators__user=user),
-        organization=user.organization
-    ).distinct()
 
 
 @extend_schema(tags=['datarooms'])
@@ -173,7 +162,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
         matched_folders = list(
             dataroom.folders.filter(name__icontains=query).select_related(
-                'created_by', 'dataroom', 'dataroom__created_by', 'parent'
+                'created_by', 'dataroom', 'dataroom__created_by', 'parent', 'source_folder'
             ).order_by('name', 'id')[:100]
         )
         matched_documents = list(
@@ -258,49 +247,18 @@ class DataroomViewSet(viewsets.ModelViewSet):
             stack.extend(list(current.children.active().filter(created_by=user)))
         return collected_doc_ids
 
-    def _replicate_folder_structure(self, dataroom, source_folder, parent_dataroom_folder, requesting_user):
+    def _replicate_folder_structure(self, dataroom, source_folder, parent_dataroom_folder, requesting_user, sync_enabled=False):
         """
         Recursively replicates a source folder structure and its documents
         into a dataroom.
         """
-        # Create a new DataroomFolder for the source folder.
-        new_dataroom_folder = DataroomFolder.objects.create(
+        return replicate_folder_to_dataroom(
             dataroom=dataroom,
-            name=source_folder.name,
-            parent=parent_dataroom_folder,
-            created_by=requesting_user or getattr(source_folder, 'created_by', None) or dataroom.created_by,
+            source_folder=source_folder,
+            parent_dataroom_folder=parent_dataroom_folder,
+            requesting_user=requesting_user,
+            sync_enabled=sync_enabled,
         )
-        if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, parent_dataroom_folder):
-            self._append_item_order(
-                dataroom=dataroom,
-                parent_folder=parent_dataroom_folder,
-                item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
-                folder=new_dataroom_folder,
-            )
-
-        # Add documents from the source folder to the new dataroom folder.
-        for doc in source_folder.documents.filter(created_by=requesting_user):
-            unique_name = self._get_unique_dataroom_document_name(
-                dataroom, new_dataroom_folder, doc.name
-            )
-            created_doc = DataroomDocument.objects.create(
-                dataroom=dataroom,
-                document=doc,
-                folder=new_dataroom_folder,
-                name=unique_name,
-                is_direct_upload=False,
-            )
-            if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, new_dataroom_folder):
-                self._append_item_order(
-                    dataroom=dataroom,
-                    parent_folder=new_dataroom_folder,
-                    item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
-                    dataroom_document=created_doc,
-                )
-
-        # Recurse for subfolders.
-        for subfolder in source_folder.children.filter(created_by=requesting_user):
-            self._replicate_folder_structure(dataroom, subfolder, new_dataroom_folder, requesting_user)
 
     @action(detail=True, methods=['post'], url_path='add-content')
     def add_content(self, request, pk=None):
@@ -313,6 +271,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
         doc_ids = data.get('document_ids', [])
         folder_ids = data.get('folder_ids', [])
         dest_folder_id = data.get('destination_folder_id')
+        sync_folders = data.get('sync_folders', False)
 
         destination_folder = None
         if dest_folder_id:
@@ -374,7 +333,9 @@ class DataroomViewSet(viewsets.ModelViewSet):
                         )
 
                 for folder in folders_to_add:
-                    self._replicate_folder_structure(dataroom, folder, destination_folder, request.user)
+                    self._replicate_folder_structure(
+                        dataroom, folder, destination_folder, request.user, sync_enabled=sync_folders
+                    )
 
                 if destination_folder:
                     touch_dataroom_folder_ancestors(destination_folder)
@@ -1382,7 +1343,9 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
         The dataroom must belong to the user's organization.
         """
         accessible_datarooms = get_dataroom_queryset_for_user(self.request.user)
-        queryset = self.queryset.filter(dataroom__in=accessible_datarooms).select_related('created_by', 'dataroom', 'dataroom__created_by')
+        queryset = self.queryset.filter(dataroom__in=accessible_datarooms).select_related(
+            'created_by', 'dataroom', 'dataroom__created_by', 'parent', 'source_folder'
+        )
         dataroom_id = self.request.query_params.get('dataroom_id')
         if dataroom_id:
             queryset = queryset.filter(dataroom_id=dataroom_id)
@@ -1391,7 +1354,9 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         # Custom logic to include sub-folders and documents
-        sub_folders = instance.children.all().select_related('created_by', 'dataroom', 'dataroom__created_by').order_by('created_at', 'id')
+        sub_folders = instance.children.all().select_related(
+            'created_by', 'dataroom', 'dataroom__created_by', 'parent', 'source_folder'
+        ).order_by('created_at', 'id')
         documents = DataroomDocument.objects.filter(
             folder=instance, document__deleted_at__isnull=True
         ).select_related('document', 'document__created_by').annotate(
@@ -1480,6 +1445,23 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
 
         if new_name and new_name != old_name:
             sync_dataroom_folder_rename(instance, old_name, new_name)
+
+    @action(detail=True, methods=['post'], url_path='unlink')
+    def unlink(self, request, pk=None):
+        """
+        Safely detaches a sync-root DataroomFolder and its synced subtree from source Folders.
+        """
+        dfolder = self.get_object()
+        if not is_dataroom_collaborator_or_above(request.user, dfolder.dataroom):
+            raise PermissionDenied("You do not have permission to unlink folders in this dataroom.")
+
+        try:
+            updated = unlink_dataroom_folder(dfolder)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(updated)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def perform_destroy(self, instance):
         remove_dataroom_content(instance.dataroom, dataroom_doc_ids=[], dataroom_folder_ids=[instance.id])

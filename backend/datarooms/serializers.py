@@ -360,14 +360,39 @@ class DataroomSerializer(serializers.ModelSerializer):
 class DataroomFolderSerializer(serializers.ModelSerializer):
     ancestors = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
+    source_folder_name = serializers.SerializerMethodField()
+    source_folder_deleted = serializers.SerializerMethodField()
+    is_sync_root = serializers.SerializerMethodField()
 
     class Meta:
         model = DataroomFolder
         fields = [
             'id', 'name', 'dataroom', 'parent', 'is_starred',
+            'is_synced', 'source_folder', 'source_folder_name',
+            'source_folder_deleted', 'is_sync_root', 'last_synced_at',
             'created_at', 'updated_at', 'ancestors', 'created_by'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'ancestors', 'created_by']
+        read_only_fields = [
+            'id', 'is_synced', 'source_folder', 'source_folder_name',
+            'source_folder_deleted', 'is_sync_root', 'last_synced_at',
+            'created_at', 'updated_at', 'ancestors', 'created_by'
+        ]
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_source_folder_name(self, obj) -> str | None:
+        if obj.source_folder:
+            return obj.source_folder.name
+        return None
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_source_folder_deleted(self, obj) -> bool:
+        return bool(obj.source_folder and obj.source_folder.deleted_at is not None)
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_is_sync_root(self, obj) -> bool:
+        if not obj.is_synced:
+            return False
+        return not (obj.parent_id and obj.parent and obj.parent.is_synced)
 
     @extend_schema_field(DataroomCollaboratorUserSerializer(allow_null=True))
     def get_created_by(self, obj):
@@ -567,12 +592,16 @@ class DataroomDetailSerializer(serializers.ModelSerializer):
             serializer_context['dataroom_folder_parent_map'] = folder_parent_map
 
         if request and request.query_params.get('content') == 'full':
-            folders = obj.folders.all().select_related('created_by', 'dataroom', 'dataroom__created_by').order_by('created_at', 'id')
+            folders = obj.folders.all().select_related(
+                'created_by', 'dataroom', 'dataroom__created_by', 'parent', 'source_folder'
+            ).order_by('created_at', 'id')
             documents = obj.documents.filter(document__deleted_at__isnull=True).select_related('document', 'document__created_by').annotate(
                 dataroom_view_count=Count('dataroomvisit', distinct=True)
             ).order_by('created_at', 'id')
         else:
-            folders = obj.folders.filter(parent__isnull=True).select_related('created_by', 'dataroom', 'dataroom__created_by').order_by('created_at', 'id')
+            folders = obj.folders.filter(parent__isnull=True).select_related(
+                'created_by', 'dataroom', 'dataroom__created_by', 'parent', 'source_folder'
+            ).order_by('created_at', 'id')
             documents = obj.documents.filter(folder__isnull=True, document__deleted_at__isnull=True).select_related('document', 'document__created_by').annotate(
                 dataroom_view_count=Count('dataroomvisit', distinct=True)
             ).order_by('created_at', 'id')
@@ -634,6 +663,7 @@ class AddContentSerializer(serializers.Serializer):
         child=serializers.CharField(), required=False, allow_empty=True
     )
     destination_folder_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    sync_folders = serializers.BooleanField(required=False, default=False)
 
     def validate(self, data):
         if not data.get('document_ids') and not data.get('folder_ids'):
