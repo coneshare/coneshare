@@ -1,8 +1,7 @@
 export const metadata = {
-  title:
-    'One Self-Hosted Hub for Your AI Conversations: Using ConeShare MCP Across ChatGPT, Claude, and Gemini',
+  title: 'Save your AI conversations in one place with ConeShare MCP',
   description:
-    'Stop losing useful AI threads across separate chat histories. Learn how to save, organize, and search conversations from ChatGPT, Claude, Gemini, and other AI tools in one workspace using ConeShare Remote MCP.',
+    'Save conversations from ChatGPT, Claude, Gemini, and coding agents as Markdown in one ConeShare workspace, then search and share them later over Remote MCP.',
   date: '2026-11-21',
   category: 'Guides',
   tags: [
@@ -15,9 +14,9 @@ export const metadata = {
   ],
 };
 
-Most people who use AI regularly do not stick to one model. You might brainstorm product positioning in ChatGPT, work through architecture or code in Claude, and run research in Gemini or other tools.
+I do research in Gemini and ChatGPT, and the actual coding in Codex and Antigravity. Every so often I remember a decision I made in one of those chats, but I can't remember which tool it was in.
 
-Two weeks later, you remember a useful architecture decision or draft from one of those sessions, except you have no idea which app it happened in. Built-in chat search only covers one vendor's sidebar, and native share links just give you an isolated public page with no folder structure or access controls.
+Each app's search only covers its own history, and its share link is a single public page with no folders or access controls.
 
 With ConeShare's Remote MCP server (`coneshare-mcp`), you can save conversations and summaries from any connected AI tool into one workspace, organize them by project, search them later, and share them with access controls when needed.
 
@@ -37,11 +36,7 @@ With ConeShare's Remote MCP server (`coneshare-mcp`), you can save conversations
 
 ## Why chat history and native share links fall short
 
-Vendor chat histories work fine for finding yesterday's thread, but they break down once AI output turns into project work:
-
-- Context gets split across ChatGPT, Claude, Gemini, and desktop or coding AI tools.
-- Threads sit flat in chronological order instead of sitting next to the PDFs, decks, or spreadsheets for that project.
-- Built-in share links are single-thread public URLs. You cannot group five related chats into one folder, put a password or expiration date on them, or see whether a teammate actually read them.
+Vendor chat history works for finding yesterday's thread. It stops working once the output becomes project work: the context is spread across several tools, the threads aren't next to the PDFs and decks for that project, and a built-in share link can't group several chats into one folder or tell you whether anyone read it.
 
 Saving those outputs over MCP stores them as Markdown documents in your own workspace, either on ConeShare Cloud or on your own self-hosted instance.
 
@@ -134,7 +129,7 @@ Before adding more files, you can also ask the assistant to list what is already
 
 ### Locate past conversations across tools
 
-When you start a new session in a different client weeks later, you do not have to dig through old browser tabs to find where a note landed. Ask your AI to search by title, description, or folder path:
+When you start a new session in a different client later, you do not have to dig through old browser tabs to find where a note landed. For example, after settling the technical design for saving AI conversations in ChatGPT, I later searched ConeShare from Antigravity to pull that design back up and keep building. Ask your AI to search by title, description, or folder path:
 
 ```text
 Search my ConeShare documents for "auth-decisions" or "OAuth 2.1" and give me the folder path, description, and any active link.
@@ -154,7 +149,7 @@ Instead of pasting a raw `chatgpt.com/share/...` URL with no access controls or 
 Create a share link for the "Project Atlas - AI Research" Dataroom that expires in 7 days, requires email verification, and sends me an email notification when someone opens it.
 ```
 
-Markdown documents render inline with copy protection and reading-depth tracking, while PDFs, Office files, and images in the same Dataroom also support dynamic watermarks. You can see who opened the link and how far they read in the ConeShare dashboard (or through local agents connected with an API key).
+Markdown documents render inline with copy protection and reading-depth tracking. PDFs, Office files, and images in the same Dataroom can also carry dynamic watermarks. The ConeShare dashboard shows who opened the link and how far they read.
 
 For everything else supported over MCP, including folder operations, Dataroom management, share link controls, and analytics, see the full tool list on the [ConeShare AI Agents page](/agents).
 
@@ -162,8 +157,4 @@ For everything else supported over MCP, including folder operations, Dataroom ma
 
 ## Try it yourself or self-host it
 
-ConeShare is open source under the MIT license and runs either as a [managed cloud service](https://app.coneshare.com/) or on your own server.
-
-To try the cloud version, point ChatGPT, Gemini, or Claude.ai to `https://app.coneshare.com/mcp/sse`, or follow the [ConeShare AI Agents setup guide](/agents) for client configs and the full tool list. To run it on your own server, visit [github.com/coneshare/coneshare](https://github.com/coneshare/coneshare) and follow the installation docs so all saved conversations and MCP traffic stay on your own infrastructure.
-
-If you bounce between multiple AI tools every day, keeping useful threads in one workspace saves you from hunting through four separate sidebars later.
+ConeShare is open source (MIT) and runs as a [managed cloud service](https://app.coneshare.com/) or on your own server. To try it, point your AI client at `https://app.coneshare.com/mcp/sse`, or see the [setup guide](/agents) for client configs and the full tool list. To self-host, start from [github.com/coneshare/coneshare](https://github.com/coneshare/coneshare).
