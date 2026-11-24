@@ -274,6 +274,12 @@ class ConeshareClient:
         doc_id = _validate_resource_id(document_id, "document_id")
         return await self._request("DELETE", f"/documents/{doc_id}/")
 
+    @staticmethod
+    def _validate_positive_file_size(file_size: int) -> int:
+        if isinstance(file_size, bool) or not isinstance(file_size, int) or file_size <= 0:
+            raise ValueError("file_size must be a positive integer.")
+        return file_size
+
     async def request_document_upload(
         self,
         file_name: str,
@@ -282,7 +288,7 @@ class ConeshareClient:
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "file_name": file_name,
-            "file_size": file_size,
+            "file_size": self._validate_positive_file_size(file_size),
         }
         normalized_path = self._normalize_upload_path(path, file_name)
         if normalized_path:
@@ -306,6 +312,35 @@ class ConeshareClient:
             payload["path"] = normalized_path
         return await self._request("POST", "/uploads/document/finalize/", json_data=payload)
 
+    async def request_version_upload(
+        self,
+        document_id: str,
+        file_name: str,
+        file_size: int,
+    ) -> dict[str, Any]:
+        doc_id = _validate_resource_id(document_id, "document_id")
+        payload: dict[str, Any] = {
+            "file_name": file_name,
+            "file_size": self._validate_positive_file_size(file_size),
+        }
+        return await self._request("POST", f"/uploads/document/{doc_id}/versions/request/", json_data=payload)
+
+    async def finalize_version_upload(
+        self,
+        document_id: str,
+        storage_key: str,
+        file_name: Optional[str] = None,
+        content_type: str = "application/octet-stream",
+    ) -> dict[str, Any]:
+        doc_id = _validate_resource_id(document_id, "document_id")
+        payload: dict[str, Any] = {
+            "storage_key": storage_key,
+            "content_type": content_type,
+        }
+        if file_name:
+            payload["file_name"] = file_name
+        return await self._request("POST", f"/uploads/document/{doc_id}/versions/finalize/", json_data=payload)
+
     async def update_document(
         self,
         document_id: str,
@@ -319,6 +354,58 @@ class ConeshareClient:
         if description is not None:
             payload["description"] = description
         return await self._request("PATCH", f"/documents/{doc_id}/", json_data=payload)
+
+    @staticmethod
+    def _validate_text_file_name(file_name: str) -> tuple[str, str, str]:
+        raw_name = file_name.strip() if isinstance(file_name, str) else ""
+        if not raw_name:
+            raise ValueError("file_name must be a non-empty string.")
+        if "/" in raw_name or "\\" in raw_name:
+            raise ValueError("Provide folder paths via 'path', not '/' inside 'file_name'.")
+
+        clean_name = raw_name.rstrip(".")
+        if not clean_name or (clean_name.startswith(".") and "." not in clean_name[1:]):
+            raise ValueError(f"Invalid file_name: '{file_name}'. Provide a valid filename with a stem.")
+
+        _, ext = os.path.splitext(clean_name)
+        if not ext:
+            clean_name = f"{clean_name}.md"
+            ext = ".md"
+
+        return raw_name, clean_name, ext
+
+    @staticmethod
+    def _prepare_text_content(content: str, ext: str, content_type: Optional[str] = None) -> tuple[bytes, str]:
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("Document content cannot be empty.")
+
+        data = content.encode("utf-8")
+        resolved_content_type = (
+            content_type.strip()
+            if isinstance(content_type, str) and content_type.strip()
+            else TEXT_CONTENT_TYPE_BY_EXTENSION.get(ext.lower(), "text/plain")
+        )
+        return data, resolved_content_type
+
+    async def _apply_optional_description(self, doc: Any, description: Optional[str]) -> dict[str, Any]:
+        if not (isinstance(description, str) and description.strip() and isinstance(doc, dict) and doc.get("id")):
+            return doc
+
+        try:
+            updated = await self.update_document(
+                document_id=str(doc["id"]),
+                description=description.strip(),
+            )
+            if isinstance(updated, dict) and not updated.get("error"):
+                return updated
+            return {**doc, "description_update_error": "Failed to update document description."}
+        except ValueError as exc:
+            logger.warning(
+                "Document %s updated, but updating description failed: %s",
+                doc.get("id"),
+                exc,
+            )
+            return {**doc, "description_update_error": str(exc)}
 
     async def create_folder(self, name: str, parent_folder_id: Optional[str] = None) -> dict[str, Any]:
         payload: dict[str, Any] = {"name": name}
@@ -387,30 +474,8 @@ class ConeshareClient:
         description: Optional[str] = None,
     ) -> dict[str, Any]:
         """Upload UTF-8 text/Markdown content directly to Personal Documents without an external PUT."""
-        raw_name = file_name.strip() if isinstance(file_name, str) else ""
-        if not raw_name:
-            raise ValueError("file_name must be a non-empty string.")
-        if "/" in raw_name or "\\" in raw_name:
-            raise ValueError("Provide folder paths via 'path', not '/' inside 'file_name'.")
-
-        clean_name = raw_name.rstrip(".")
-        if not clean_name or (clean_name.startswith(".") and "." not in clean_name[1:]):
-            raise ValueError(f"Invalid file_name: '{file_name}'. Provide a valid filename with a stem.")
-
-        _, ext = os.path.splitext(clean_name)
-        if not ext:
-            clean_name = f"{clean_name}.md"
-            ext = ".md"
-
-        if not isinstance(content, str) or not content.strip():
-            raise ValueError("Document content cannot be empty.")
-
-        data = content.encode("utf-8")
-        resolved_content_type = (
-            content_type.strip()
-            if isinstance(content_type, str) and content_type.strip()
-            else TEXT_CONTENT_TYPE_BY_EXTENSION.get(ext.lower(), "text/plain")
-        )
+        raw_name, clean_name, ext = self._validate_text_file_name(file_name)
+        data, resolved_content_type = self._prepare_text_content(content, ext, content_type)
 
         folder_segments, folder_path = self._extract_folder_segments(path, clean_name, raw_name)
         if folder_segments:
@@ -444,26 +509,65 @@ class ConeshareClient:
             content_type=resolved_content_type,
             path=finalize_path,
         )
+        return await self._apply_optional_description(doc, description)
 
-        if isinstance(description, str) and description.strip() and isinstance(doc, dict) and doc.get("id"):
-            try:
-                updated = await self.update_document(
-                    document_id=str(doc["id"]),
-                    description=description.strip(),
-                )
-                if isinstance(updated, dict) and not updated.get("error"):
-                    doc = updated
-                else:
-                    doc = {**doc, "description_update_error": "Failed to update document description."}
-            except ValueError as exc:
-                logger.warning(
-                    "Document %s created, but updating description failed: %s",
-                    doc.get("id"),
-                    exc,
-                )
-                doc = {**doc, "description_update_error": str(exc)}
+    async def update_text_document(
+        self,
+        document_id: str,
+        content: str,
+        file_name: Optional[str] = None,
+        content_type: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Upload a new UTF-8 text/Markdown version for an existing document, preserving its ID and share links."""
+        doc_id = _validate_resource_id(document_id, "document_id")
 
-        return doc
+        if file_name is not None:
+            _, clean_name, ext = self._validate_text_file_name(file_name)
+            finalize_file_name: Optional[str] = clean_name
+        else:
+            existing_doc = await self.get_document(doc_id)
+            if not isinstance(existing_doc, dict) or existing_doc.get("error") or not existing_doc.get("name"):
+                raise ValueError(f"Failed to retrieve existing document '{doc_id}' before version upload.")
+            clean_name = str(existing_doc["name"]).strip()
+            _, ext = os.path.splitext(clean_name)
+            finalize_file_name = None
+
+        if ext.lower() not in TEXT_CONTENT_TYPE_BY_EXTENSION:
+            supported = ", ".join(sorted(TEXT_CONTENT_TYPE_BY_EXTENSION))
+            raise ValueError(
+                f"Unsupported text document extension '{ext or '<none>'}' for '{clean_name}'. "
+                f"Supported extensions: {supported}. "
+                "For binary or other file types, use request_version_upload + finalize_version_upload instead."
+            )
+
+        data, resolved_content_type = self._prepare_text_content(content, ext, content_type)
+        req_res = await self.request_version_upload(
+            document_id=doc_id,
+            file_name=clean_name,
+            file_size=len(data),
+        )
+        if not isinstance(req_res, dict) or req_res.get("error"):
+            raise ValueError(f"Failed to request version upload URL for document '{doc_id}'.")
+
+        upload_url = req_res.get("upload_url")
+        storage_key = req_res.get("storage_key")
+        if not upload_url or not storage_key:
+            raise ValueError("Version upload request response missing required 'upload_url' or 'storage_key'.")
+
+        await self._upload_bytes(
+            upload_url=str(upload_url),
+            data=data,
+            content_type=resolved_content_type,
+        )
+
+        doc = await self.finalize_version_upload(
+            document_id=doc_id,
+            storage_key=str(storage_key),
+            file_name=finalize_file_name,
+            content_type=resolved_content_type,
+        )
+        return await self._apply_optional_description(doc, description)
 
     async def update_folder(self, folder_id: str, name: str) -> dict[str, Any]:
         f_id = _validate_resource_id(folder_id, "folder_id")

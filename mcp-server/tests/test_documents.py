@@ -767,4 +767,275 @@ class TestDocuments(BaseMCPTestCase):
             }),
         ])
 
+    async def test_request_and_finalize_version_upload(self):
+        recorded_requests = []
+
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            recorded_requests.append((method, path, json_data))
+            if path == "/uploads/document/doc_123/versions/request/":
+                return {
+                    "upload_url": "http://testserver/upload/ver2",
+                    "storage_key": "org_1/report_v2.pdf",
+                }
+            if path == "/uploads/document/doc_123/versions/finalize/":
+                return {
+                    "id": "doc_123",
+                    "name": "report.pdf",
+                    "status": "ready",
+                    "versions": [{"version_number": 2, "is_primary": True}],
+                }
+            return {"error": True}
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            client = ConeshareClient(api_key="cs_live_testkey123456789")
+            req_res = await client.request_version_upload(
+                document_id="doc_123",
+                file_name="report_v2.pdf",
+                file_size=4096,
+            )
+            self.assertEqual(req_res["storage_key"], "org_1/report_v2.pdf")
+
+            fin_res = await client.finalize_version_upload(
+                document_id="doc_123",
+                storage_key=req_res["storage_key"],
+                file_name="report_v2.pdf",
+                content_type="application/pdf",
+            )
+            self.assertEqual(fin_res["id"], "doc_123")
+            self.assertEqual(fin_res["versions"][0]["version_number"], 2)
+        finally:
+            ConeshareClient._request = old_request
+
+        self.assertEqual(recorded_requests, [
+            ("POST", "/uploads/document/doc_123/versions/request/", {
+                "file_name": "report_v2.pdf",
+                "file_size": 4096,
+            }),
+            ("POST", "/uploads/document/doc_123/versions/finalize/", {
+                "storage_key": "org_1/report_v2.pdf",
+                "content_type": "application/pdf",
+                "file_name": "report_v2.pdf",
+            }),
+        ])
+
+    async def test_version_upload_tools_execution(self):
+        mcp = FastMCP("test_mcp")
+        register_document_tools(mcp)
+
+        mock_client = MagicMock()
+        mock_client.request_version_upload = AsyncMock(return_value={
+            "upload_url": "https://app.coneshare.com/files/upload/tok",
+            "storage_key": "org_1/v2.pdf",
+        })
+        mock_client.finalize_version_upload = AsyncMock(return_value={"id": "doc_123", "status": "ready"})
+        mock_ctx = MagicMock()
+
+        req_tool = await mcp.get_tool("request_version_upload")
+        fin_tool = await mcp.get_tool("finalize_version_upload")
+        with patch("coneshare_mcp.tools.documents.ConeshareClient.from_ctx", return_value=mock_client):
+            req_res = await req_tool.fn(ctx=mock_ctx, document_id="doc_123", file_name="v2.pdf", file_size=512)
+            fin_res = await fin_tool.fn(
+                ctx=mock_ctx,
+                document_id="doc_123",
+                storage_key="org_1/v2.pdf",
+                file_name=None,
+                content_type="application/pdf",
+            )
+
+        self.assertEqual(req_res["storage_key"], "org_1/v2.pdf")
+        self.assertEqual(fin_res["id"], "doc_123")
+        mock_client.request_version_upload.assert_awaited_once_with(
+            document_id="doc_123",
+            file_name="v2.pdf",
+            file_size=512,
+        )
+        mock_client.finalize_version_upload.assert_awaited_once_with(
+            document_id="doc_123",
+            storage_key="org_1/v2.pdf",
+            file_name=None,
+            content_type="application/pdf",
+        )
+
+    async def test_version_upload_rejects_invalid_document_id(self):
+        client = ConeshareClient(api_key="cs_live_testkey123456789")
+        with self.assertRaises(ValueError):
+            await client.request_version_upload(document_id="../bad", file_name="v2.pdf", file_size=100)
+        with self.assertRaises(ValueError):
+            await client.finalize_version_upload(document_id="doc/bad", storage_key="org_1/v2.pdf")
+
+    async def test_update_text_document_defaults_filename_and_uploads_new_version(self):
+        recorded_requests = []
+        put_calls = []
+        new_content = "# Updated Guide\n\nVersion 2"
+
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            recorded_requests.append((method, path, json_data))
+            if method == "GET" and path == "/documents/doc_md_1/":
+                return {"id": "doc_md_1", "name": "Guide.md", "content_type": "text/markdown"}
+            if path == "/uploads/document/doc_md_1/versions/request/":
+                return {
+                    "upload_url": "https://cdn.example.com/presigned/v2",
+                    "storage_key": "org_1/guide_v2.md",
+                }
+            if path == "/uploads/document/doc_md_1/versions/finalize/":
+                return {"id": "doc_md_1", "name": "Guide.md", "status": "ready"}
+            if method == "PATCH" and path == "/documents/doc_md_1/":
+                return {"id": "doc_md_1", "name": "Guide.md", "description": json_data.get("description")}
+            return {"error": True}
+
+        class MockPutClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def put(self, url, content=None, headers=None):
+                put_calls.append((url, content, headers))
+                return httpx.Response(200, request=httpx.Request("PUT", url))
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            with patch("coneshare_mcp.client.httpx.AsyncClient", MockPutClient):
+                client = ConeshareClient(api_key="cs_live_testkey123456789", settings=self.mock_settings)
+                res = await client.update_text_document(
+                    document_id="doc_md_1",
+                    content=new_content,
+                    description="Updated guide v2",
+                )
+        finally:
+            ConeshareClient._request = old_request
+
+        self.assertEqual(res["id"], "doc_md_1")
+        self.assertEqual(res["description"], "Updated guide v2")
+        self.assertEqual(put_calls, [
+            ("https://cdn.example.com/presigned/v2", new_content.encode("utf-8"), {"Content-Type": "text/markdown"}),
+        ])
+        self.assertEqual(recorded_requests, [
+            ("GET", "/documents/doc_md_1/", None),
+            ("POST", "/uploads/document/doc_md_1/versions/request/", {
+                "file_name": "Guide.md",
+                "file_size": len(new_content.encode("utf-8")),
+            }),
+            ("POST", "/uploads/document/doc_md_1/versions/finalize/", {
+                "storage_key": "org_1/guide_v2.md",
+                "content_type": "text/markdown",
+            }),
+            ("PATCH", "/documents/doc_md_1/", {"description": "Updated guide v2"}),
+        ])
+
+    async def test_update_text_document_tool_execution(self):
+        mcp = FastMCP("test_mcp")
+        register_document_tools(mcp)
+
+        mock_client = MagicMock()
+        mock_client.update_text_document = AsyncMock(return_value={"id": "doc_md_1", "status": "ready"})
+        mock_ctx = MagicMock()
+
+        tool = await mcp.get_tool("update_text_document")
+        with patch("coneshare_mcp.tools.documents.ConeshareClient.from_ctx", return_value=mock_client):
+            res = await tool.fn(
+                ctx=mock_ctx,
+                document_id="doc_md_1",
+                content="# Updated",
+                file_name="Guide_v2.md",
+                content_type=None,
+                description=None,
+            )
+
+        self.assertEqual(res["id"], "doc_md_1")
+        mock_client.update_text_document.assert_awaited_once_with(
+            document_id="doc_md_1",
+            content="# Updated",
+            file_name="Guide_v2.md",
+            content_type=None,
+            description=None,
+        )
+
+    async def test_update_text_document_put_failure_stops_before_finalize(self):
+        recorded_paths = []
+
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            recorded_paths.append(path)
+            if path == "/uploads/document/doc_md_1/versions/request/":
+                return {
+                    "upload_url": "https://cdn.example.com/presigned/v2",
+                    "storage_key": "org_1/guide_v2.md",
+                }
+            return {"error": True}
+
+        class MockFailPutClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def put(self, url, content=None, headers=None):
+                return httpx.Response(500, text="storage error", request=httpx.Request("PUT", url))
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            with patch("coneshare_mcp.client.httpx.AsyncClient", MockFailPutClient):
+                client = ConeshareClient(api_key="cs_live_testkey123456789", settings=self.mock_settings)
+                with self.assertRaises(ValueError):
+                    await client.update_text_document(
+                        document_id="doc_md_1",
+                        content="# Broken PUT",
+                        file_name="Guide.md",
+                    )
+        finally:
+            ConeshareClient._request = old_request
+
+        self.assertEqual(recorded_paths, ["/uploads/document/doc_md_1/versions/request/"])
+
+    async def test_update_text_document_rejects_non_text_extensions(self):
+        recorded_requests = []
+
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            recorded_requests.append((method, path))
+            if method == "GET" and path == "/documents/doc_pdf_1/":
+                return {"id": "doc_pdf_1", "name": "Quarterly_Report.pdf", "type": "pdf"}
+            return {"error": True}
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            client = ConeshareClient(api_key="cs_live_testkey123456789", settings=self.mock_settings)
+
+            with self.assertRaises(ValueError) as ctx_omitted:
+                await client.update_text_document(document_id="doc_pdf_1", content="# Plain text")
+            self.assertIn("request_version_upload", str(ctx_omitted.exception))
+
+            with self.assertRaises(ValueError) as ctx_explicit:
+                await client.update_text_document(
+                    document_id="doc_pdf_1",
+                    content="# Plain text",
+                    file_name="Quarterly_Report.pdf",
+                )
+            self.assertIn("request_version_upload", str(ctx_explicit.exception))
+        finally:
+            ConeshareClient._request = old_request
+
+        # Must only inspect GET /documents/doc_pdf_1/ when file_name is omitted; never request a version upload
+        self.assertEqual(recorded_requests, [("GET", "/documents/doc_pdf_1/")])
+
+    async def test_request_upload_rejects_non_positive_file_size(self):
+        client = ConeshareClient(api_key="cs_live_testkey123456789")
+        for bad_size in (0, -1, True):
+            with self.assertRaises(ValueError):
+                await client.request_version_upload(document_id="doc_123", file_name="v2.pdf", file_size=bad_size)
+            with self.assertRaises(ValueError):
+                await client.request_document_upload(file_name="new.pdf", file_size=bad_size)
+
 

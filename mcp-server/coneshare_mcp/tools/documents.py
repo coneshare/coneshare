@@ -55,10 +55,12 @@ def register_document_tools(mcp: FastMCP) -> None:
         file_size: int = Field(gt=0, description="Size of the file in bytes"),
         path: Optional[str] = Field(default=None, description="Optional root-relative destination folder path (e.g. 'data/exports')"),
     ) -> dict:
-        """Request a pre-signed URL to upload documents or datasets directly to storage.
+        """Request a pre-signed URL to upload a new document directly to storage.
 
         Use this tool for binary files, documents, or datasets.
         Returns an upload_url for direct HTTP PUT, followed by finalize_document_upload.
+        To upload a new version of an existing document without changing its ID or share links,
+        use request_version_upload instead.
         """
         client = ConeshareClient.from_ctx(ctx)
         return await client.request_document_upload(
@@ -76,9 +78,10 @@ def register_document_tools(mcp: FastMCP) -> None:
         content_type: str = Field(default="application/octet-stream", description="MIME type of the file"),
         path: Optional[str] = Field(default=None, description="Optional root-relative destination folder path"),
     ) -> dict:
-        """Finalize document creation after streaming file content to the pre-signed upload URL.
+        """Finalize new document creation after streaming file content to the pre-signed upload URL.
 
         Commit document metadata, create workspace records, and trigger background preview processing.
+        For new versions of an existing document, use finalize_version_upload instead.
         """
         client = ConeshareClient.from_ctx(ctx)
         target_unique_name = unique_name or file_name
@@ -92,6 +95,46 @@ def register_document_tools(mcp: FastMCP) -> None:
         )
 
     @mcp.tool()
+    async def request_version_upload(
+        ctx: Context,
+        document_id: str = Field(description="ULID of the existing document to update with a new version"),
+        file_name: str = Field(description="Name of the new version file (e.g., 'report_v2.pdf')"),
+        file_size: int = Field(gt=0, description="Size of the new version file in bytes"),
+    ) -> dict:
+        """Request a pre-signed URL to upload a new version of an existing document.
+
+        Preserves the document ULID and all active share links (which automatically serve the new primary version).
+        Returns an upload_url and storage_key for direct HTTP PUT, followed by finalize_version_upload.
+        For in-memory Markdown/CSV/text content updates, prefer update_text_document.
+        """
+        client = ConeshareClient.from_ctx(ctx)
+        return await client.request_version_upload(
+            document_id=document_id,
+            file_name=file_name,
+            file_size=file_size,
+        )
+
+    @mcp.tool()
+    async def finalize_version_upload(
+        ctx: Context,
+        document_id: str = Field(description="ULID of the existing document being updated"),
+        storage_key: str = Field(description="Storage key returned from request_version_upload"),
+        file_name: Optional[str] = Field(default=None, description="Optional filename for the new version"),
+        content_type: str = Field(default="application/octet-stream", description="MIME type of the new version file"),
+    ) -> dict:
+        """Finalize a new document version after streaming file content to the pre-signed upload URL.
+
+        Promotes the new version to primary, preserves existing share links, and triggers preview rendering.
+        """
+        client = ConeshareClient.from_ctx(ctx)
+        return await client.finalize_version_upload(
+            document_id=document_id,
+            storage_key=storage_key,
+            file_name=file_name,
+            content_type=content_type,
+        )
+
+    @mcp.tool()
     async def create_text_document(
         ctx: Context,
         file_name: str = Field(
@@ -102,7 +145,7 @@ def register_document_tools(mcp: FastMCP) -> None:
         ),
         content_type: Optional[str] = Field(
             default=None,
-            description="Optional MIME type (defaults to 'text/markdown' or inferred from file extension)",
+            description="Optional MIME type (inferred from filename extension, defaulting to 'text/markdown' when extensionless or 'text/plain' for unknown extensions)",
         ),
         path: Optional[str] = Field(
             default=None,
@@ -113,11 +156,12 @@ def register_document_tools(mcp: FastMCP) -> None:
             description="Optional summary or description metadata indexed by search_documents",
         ),
     ) -> dict:
-        """Create a text or Markdown document directly in Personal Documents from in-memory content.
+        """Create a new text or Markdown document directly in Personal Documents from in-memory content.
 
         Use this tool when content is already text/Markdown/CSV in context (especially for web AI clients
         that cannot execute an external HTTP PUT). Prefer '.md' when inline web preview or dynamic watermarking
         on share links is desired (Markdown and CSV preview inline; '.txt' and '.json' are stored as download-only).
+        To update an existing text/Markdown document in place while keeping its share links, use update_text_document.
         For external binary files, use request_document_upload + finalize_document_upload instead.
         Compose with add_content_to_dataroom or create_share_link when asked to attach to a dataroom or share.
         """
@@ -131,13 +175,49 @@ def register_document_tools(mcp: FastMCP) -> None:
         )
 
     @mcp.tool()
+    async def update_text_document(
+        ctx: Context,
+        document_id: str = Field(description="ULID of the existing document to update with new text/Markdown content"),
+        content: str = Field(description="Full UTF-8 Markdown, CSV, or plain text body for the new version"),
+        file_name: Optional[str] = Field(
+            default=None,
+            description="Optional filename for the new version (defaults to the existing document name)",
+        ),
+        content_type: Optional[str] = Field(
+            default=None,
+            description="Optional MIME type (inferred from the filename extension when omitted, e.g. 'text/markdown' for '.md', 'text/csv' for '.csv')",
+        ),
+        description: Optional[str] = Field(
+            default=None,
+            description="Optional updated document description metadata",
+        ),
+    ) -> dict:
+        """Update an existing text or Markdown document in place by uploading a new version from in-memory content.
+
+        Preserves the document ULID and all existing share links, making them serve the updated content immediately.
+        For external binary files, use request_version_upload + finalize_version_upload instead.
+        """
+        client = ConeshareClient.from_ctx(ctx)
+        return await client.update_text_document(
+            document_id=document_id,
+            content=content,
+            file_name=file_name,
+            content_type=content_type,
+            description=description,
+        )
+
+    @mcp.tool()
     async def update_document(
         ctx: Context,
         document_id: str = Field(description="ULID of the document to update"),
         name: Optional[str] = Field(default=None, description="Updated file name (e.g. 'report_v2.pdf')"),
         description: Optional[str] = Field(default=None, description="Updated document description"),
     ) -> dict:
-        """Rename or update description metadata of an existing document."""
+        """Rename or update description metadata of an existing document.
+
+        To replace file content with a new version, use update_text_document (for text/Markdown)
+        or request_version_upload + finalize_version_upload (for binary/external files).
+        """
         client = ConeshareClient.from_ctx(ctx)
         return await client.update_document(document_id=document_id, name=name, description=description)
 
