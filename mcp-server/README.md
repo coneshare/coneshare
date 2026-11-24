@@ -158,11 +158,13 @@ curl -sSL https://raw.githubusercontent.com/coneshare/coneshare/main/.agent/skil
 
 ---
 
-## Available tools (32 tools)
+## Available tools (34 tools)
 
-### Documents and folders (15 tools)
+### Documents and folders (17 tools)
 * `list_documents`: Paginated list of workspace documents with folder filtering.
 * `get_document`: Retrieve detailed document metadata, versions, and active links.
+* `read_text_document`: Read UTF-8 content of a text-based document (`.md`, `.csv`, `.txt`, `.json`, `.yaml`) into context with pagination.
+* `get_document_download_url`: Get a temporary signed download URL for the primary version of any document.
 * `search_documents`: Search workspace documents by filename or description query with pagination.
 * `create_text_document`: Create a Markdown, CSV, or plain text document directly from in-memory text (defaults to `.md`, ensures folders along `path`, no external PUT required).
 * `update_text_document`: Update an existing text or Markdown document in place with a new version from in-memory content, preserving its document ID and share links.

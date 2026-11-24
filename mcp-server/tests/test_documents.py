@@ -1,7 +1,12 @@
 from unittest.mock import MagicMock, AsyncMock, patch
 import httpx
 from fastmcp import FastMCP
-from coneshare_mcp.client import ConeshareClient
+from coneshare_mcp.client import (
+    ConeshareClient,
+    DEFAULT_TEXT_READ_CHARS,
+    MAX_TEXT_READ_BYTES,
+    MAX_TEXT_READ_CHARS,
+)
 from coneshare_mcp.config import Settings
 from coneshare_mcp.tools.documents import register_document_tools
 from tests.base import BaseMCPTestCase
@@ -1037,5 +1042,349 @@ class TestDocuments(BaseMCPTestCase):
                 await client.request_version_upload(document_id="doc_123", file_name="v2.pdf", file_size=bad_size)
             with self.assertRaises(ValueError):
                 await client.request_document_upload(file_name="new.pdf", file_size=bad_size)
+
+    async def test_read_text_document_rewrites_internal_url_and_returns_utf8_content(self):
+        markdown_text = "# SSH ProxyJump 指南\n\n中文内容测试。"
+        markdown_bytes = markdown_text.encode("utf-8")
+        self.assertGreater(len(markdown_bytes), len(markdown_text))
+        requested_urls = []
+
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            if method == "GET" and path == "/documents/doc_md_read/":
+                return {
+                    "id": "doc_md_read",
+                    "name": "SSH ProxyJump 指南.md",
+                    "type": "markdown",
+                    "content_type": "text/markdown",
+                    "file_size": len(markdown_bytes),
+                    "status": "ready",
+                    "versions": [{"version_number": 1, "is_primary": True, "file_name": "SSH ProxyJump 指南.md"}],
+                }
+            if method == "GET" and path == "/documents/doc_md_read/download/":
+                return {"download_url": "https://app.coneshare.com/files/download/tok-dl-1"}
+            return {"error": True}
+
+        class MockStreamResponse:
+            def __init__(self, status_code: int, chunks: list[bytes], headers: dict[str, str] | None = None):
+                self.status_code = status_code
+                self.is_success = 200 <= status_code < 300
+                self._chunks = chunks
+                self.headers = headers or {}
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def aiter_bytes(self):
+                for chunk in self._chunks:
+                    yield chunk
+
+        class MockStreamClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            def stream(self, method, url):
+                requested_urls.append((method, url))
+                return MockStreamResponse(200, [markdown_bytes[:10], markdown_bytes[10:]])
+
+        settings_with_internal = Settings(
+            api_url="http://testserver/api/v1",
+            mcp_transport="streamable-http",
+            mcp_host="127.0.0.1",
+            mcp_port=8001,
+            mcp_path="/mcp/sse",
+            fileserver_internal_url="http://core:8080",
+        )
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            with patch("coneshare_mcp.client.httpx.AsyncClient", MockStreamClient):
+                client = ConeshareClient(api_key="cs_live_testkey123456789", settings=settings_with_internal)
+                res = await client.read_text_document(document_id="doc_md_read")
+        finally:
+            ConeshareClient._request = old_request
+
+        self.assertEqual(requested_urls, [("GET", "http://core:8080/files/download/tok-dl-1")])
+        self.assertEqual(res["document_id"], "doc_md_read")
+        self.assertEqual(res["content_type"], "text/markdown")
+        self.assertEqual(res["file_size"], len(markdown_bytes))
+        self.assertEqual(res["total_chars"], len(markdown_text))
+        self.assertEqual(res["returned_chars"], len(markdown_text))
+        self.assertFalse(res["truncated"])
+        self.assertIsNone(res["next_offset"])
+        self.assertEqual(res["content"], markdown_text)
+
+    async def test_read_text_document_handles_renamed_docs_and_pagination(self):
+        csv_text = "a,b\n1,2\n3,4\n"
+
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            if method == "GET" and path == "/documents/doc_renamed/":
+                return {
+                    "id": "doc_renamed",
+                    "name": "Q4 Metrics",  # User removed extension via rename
+                    "type": "unknown",
+                    "content_type": "text/csv",
+                    "original_storage_key": "org_1/metrics.csv",
+                    "file_size": len(csv_text.encode("utf-8")),
+                    "status": "ready",
+                    "versions": [{"version_number": 1, "is_primary": True, "file_name": "Q4 Metrics"}],
+                }
+            if method == "GET" and path == "/documents/doc_renamed/download/":
+                return {"download_url": "https://cdn.example.com/signed/metrics.csv"}
+            return {"error": True}
+
+        class MockStreamResponse:
+            status_code = 200
+            is_success = True
+            headers: dict[str, str] = {}
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def aiter_bytes(self):
+                yield csv_text.encode("utf-8")
+
+        class MockStreamClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            def stream(self, method, url):
+                self.url = url
+                return MockStreamResponse()
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            with patch("coneshare_mcp.client.httpx.AsyncClient", MockStreamClient):
+                client = ConeshareClient(api_key="cs_live_testkey123456789", settings=self.mock_settings)
+                page1 = await client.read_text_document(document_id="doc_renamed", offset=0, max_chars=5)
+                page2 = await client.read_text_document(document_id="doc_renamed", offset=page1["next_offset"], max_chars=20)
+        finally:
+            ConeshareClient._request = old_request
+
+        self.assertEqual(page1["content_type"], "text/csv")
+        self.assertEqual(page1["content"], csv_text[:5])
+        self.assertTrue(page1["truncated"])
+        self.assertEqual(page1["next_offset"], 5)
+        self.assertEqual(page2["content"], csv_text[5:])
+        self.assertFalse(page2["truncated"])
+        self.assertIsNone(page2["next_offset"])
+
+    async def test_read_text_document_validation_and_error_guards(self):
+        client = ConeshareClient(api_key="cs_live_testkey123456789", settings=self.mock_settings)
+
+        for bad_offset in (-1, True):
+            with self.assertRaises(ValueError):
+                await client.read_text_document(document_id="doc_1", offset=bad_offset)
+        for bad_max in (0, -5, MAX_TEXT_READ_CHARS + 1, False):
+            with self.assertRaises(ValueError):
+                await client.read_text_document(document_id="doc_1", max_chars=bad_max)
+
+        # Reject binary extension (.pdf), unverified extensionless binary, uploading doc, oversized metadata
+        doc_responses = {
+            "/documents/doc_pdf/": {"id": "doc_pdf", "name": "Deck.pdf", "type": "pdf", "status": "ready"},
+            "/documents/doc_bin/": {
+                "id": "doc_bin",
+                "name": "blob",
+                "type": "unknown",
+                "content_type": "application/octet-stream",
+                "status": "ready",
+            },
+            "/documents/doc_up/": {"id": "doc_up", "name": "Notes.md", "status": "uploading"},
+            "/documents/doc_big/": {
+                "id": "doc_big",
+                "name": "Huge.log",
+                "file_size": MAX_TEXT_READ_BYTES + 1,
+                "status": "ready",
+            },
+        }
+        called_paths = []
+
+        async def mock_guard_request(self_client, method, path, params=None, json_data=None, files=None):
+            called_paths.append(path)
+            return doc_responses.get(path, {"error": True})
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_guard_request
+        try:
+            for doc_id in ("doc_pdf", "doc_bin", "doc_up", "doc_big"):
+                with self.assertRaises(ValueError):
+                    await client.read_text_document(document_id=doc_id)
+        finally:
+            ConeshareClient._request = old_request
+
+        # Never minted a download token for any rejected document
+        self.assertEqual(called_paths, [
+            "/documents/doc_pdf/",
+            "/documents/doc_bin/",
+            "/documents/doc_up/",
+            "/documents/doc_big/",
+        ])
+
+    async def test_read_text_document_rejects_http_error_oversized_stream_and_invalid_utf8(self):
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            if method == "GET" and path == "/documents/doc_txt/":
+                return {"id": "doc_txt", "name": "Notes.txt", "file_size": 10, "status": "ready"}
+            if method == "GET" and path == "/documents/doc_txt/download/":
+                return {"download_url": "https://app.coneshare.com/files/download/tok-1"}
+            return {"error": True}
+
+        scenario = {"status": 403, "chunks": [b"Invalid or expired download link"], "headers": {}}
+
+        class MockStreamResponse:
+            def __init__(self):
+                self.status_code = scenario["status"]
+                self.is_success = 200 <= self.status_code < 300
+                self.headers: dict[str, str] = scenario["headers"]
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def aiter_bytes(self):
+                for c in scenario["chunks"]:
+                    yield c
+
+        class MockStreamClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            def stream(self, method, url):
+                return MockStreamResponse()
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            with patch("coneshare_mcp.client.httpx.AsyncClient", MockStreamClient):
+                client = ConeshareClient(api_key="cs_live_testkey123456789", settings=self.mock_settings)
+
+                # 1. Non-2xx response from file server must fail rather than returning error text
+                with self.assertRaises(ValueError) as err_http:
+                    await client.read_text_document(document_id="doc_txt")
+                self.assertIn("Storage download failed (403)", str(err_http.exception))
+
+                # 2. Content-Length header exceeding MAX_TEXT_READ_BYTES must fail fast before buffering
+                scenario["status"] = 200
+                scenario["headers"] = {"Content-Length": str(MAX_TEXT_READ_BYTES + 1)}
+                scenario["chunks"] = [b"small"]
+                with self.assertRaises(ValueError) as err_hdr:
+                    await client.read_text_document(document_id="doc_txt")
+                self.assertIn("exceeds maximum", str(err_hdr.exception))
+
+                # 3. Non-numeric Content-Length falls back gracefully; stream exceeding limit still fails
+                scenario["headers"] = {"Content-Length": "invalid"}
+                scenario["chunks"] = [b"a" * (MAX_TEXT_READ_BYTES + 10)]
+                with self.assertRaises(ValueError) as err_size:
+                    await client.read_text_document(document_id="doc_txt")
+                self.assertIn("exceeds maximum", str(err_size.exception))
+
+                # 4. Non-UTF-8 bytes masquerading as .txt must fail
+                scenario["headers"] = {}
+                scenario["chunks"] = [b"\xff\xfe\x00\x01"]
+                with self.assertRaises(ValueError) as err_utf8:
+                    await client.read_text_document(document_id="doc_txt")
+                self.assertIn("UTF-8", str(err_utf8.exception))
+        finally:
+            ConeshareClient._request = old_request
+
+    async def test_get_document_download_url_checks_status_sequentially_and_preserves_external_url(self):
+        recorded_paths = []
+
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            recorded_paths.append((method, path))
+            if path == "/documents/doc_uploading/":
+                return {"id": "doc_uploading", "name": "Deck.pdf", "status": "uploading"}
+            if path == "/documents/doc_ready/":
+                return {
+                    "id": "doc_ready",
+                    "name": "Deck.pdf",
+                    "type": "pdf",
+                    "content_type": "application/pdf",
+                    "file_size": 4096,
+                    "status": "ready",
+                }
+            if path == "/documents/doc_ready/download/":
+                return {"download_url": "https://app.coneshare.com/files/download/tok-ext-1"}
+            return {"error": True}
+
+        settings_with_internal = Settings(
+            api_url="http://testserver/api/v1",
+            mcp_transport="streamable-http",
+            mcp_host="127.0.0.1",
+            mcp_port=8001,
+            mcp_path="/mcp/sse",
+            fileserver_internal_url="http://core:8080",
+        )
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            client = ConeshareClient(api_key="cs_live_testkey123456789", settings=settings_with_internal)
+            with self.assertRaises(ValueError):
+                await client.get_document_download_url(document_id="doc_uploading")
+            res = await client.get_document_download_url(document_id="doc_ready")
+        finally:
+            ConeshareClient._request = old_request
+
+        self.assertEqual(recorded_paths, [
+            ("GET", "/documents/doc_uploading/"),
+            ("GET", "/documents/doc_ready/"),
+            ("GET", "/documents/doc_ready/download/"),
+        ])
+        self.assertEqual(res["download_url"], "https://app.coneshare.com/files/download/tok-ext-1")
+        self.assertEqual(res["file_size"], 4096)
+
+    async def test_read_and_download_tools_execution(self):
+        mcp = FastMCP("test_mcp")
+        register_document_tools(mcp)
+
+        mock_client = MagicMock()
+        mock_client.read_text_document = AsyncMock(return_value={"document_id": "doc_1", "content": "# Hi"})
+        mock_client.get_document_download_url = AsyncMock(return_value={
+            "document_id": "doc_2",
+            "download_url": "https://app.coneshare.com/files/download/tok-2",
+        })
+        mock_ctx = MagicMock()
+
+        read_tool = await mcp.get_tool("read_text_document")
+        dl_tool = await mcp.get_tool("get_document_download_url")
+        with patch("coneshare_mcp.tools.documents.ConeshareClient.from_ctx", return_value=mock_client):
+            read_res = await read_tool.fn(ctx=mock_ctx, document_id="doc_1", offset=0, max_chars=DEFAULT_TEXT_READ_CHARS)
+            dl_res = await dl_tool.fn(ctx=mock_ctx, document_id="doc_2")
+
+        self.assertEqual(read_res["content"], "# Hi")
+        self.assertEqual(dl_res["download_url"], "https://app.coneshare.com/files/download/tok-2")
+        mock_client.read_text_document.assert_awaited_once_with(
+            document_id="doc_1",
+            offset=0,
+            max_chars=DEFAULT_TEXT_READ_CHARS,
+        )
+        mock_client.get_document_download_url.assert_awaited_once_with(document_id="doc_2")
 
 
