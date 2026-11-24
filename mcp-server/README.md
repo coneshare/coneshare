@@ -158,21 +158,24 @@ curl -sSL https://raw.githubusercontent.com/coneshare/coneshare/main/.agent/skil
 
 ---
 
-## Available tools (29 tools)
+## Available tools (32 tools)
 
-### Documents and folders (12 tools)
+### Documents and folders (15 tools)
 * `list_documents`: Paginated list of workspace documents with folder filtering.
 * `get_document`: Retrieve detailed document metadata, versions, and active links.
 * `search_documents`: Search workspace documents by filename or description query with pagination.
 * `create_text_document`: Create a Markdown, CSV, or plain text document directly from in-memory text (defaults to `.md`, ensures folders along `path`, no external PUT required).
+* `update_text_document`: Update an existing text or Markdown document in place with a new version from in-memory content, preserving its document ID and share links.
 * `update_document`: Rename or update description metadata of an existing document.
 * `delete_document`: `[DESTRUCTIVE]` Soft-delete a document (moves to Trash).
 * `create_folder`: Create a new folder in your workspace documents hierarchy.
 * `update_folder`: Rename an existing workspace folder.
 * `delete_folder`: `[DESTRUCTIVE]` Soft-delete a workspace folder.
 * `move_items`: Move documents and/or subfolders into a destination workspace folder.
-* `request_document_upload`: Request a pre-signed URL to upload documents/datasets directly to storage.
-* `finalize_document_upload`: Finalize document creation after streaming file content to pre-signed upload URL.
+* `request_document_upload`: Request a pre-signed URL to upload a new document directly to storage.
+* `finalize_document_upload`: Finalize new document creation after streaming file content to pre-signed upload URL.
+* `request_version_upload`: Request a pre-signed URL to upload a new version of an existing document (preserves ID and share links).
+* `finalize_version_upload`: Finalize a new document version after streaming file content to the pre-signed upload URL.
 
 ### Datarooms (8 tools)
 * `list_datarooms`: List accessible datarooms with pagination and optional `name` substring filter.

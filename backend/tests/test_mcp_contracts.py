@@ -3,7 +3,13 @@ import pytest
 from django.urls import resolve, Resolver404
 from rest_framework import status
 from documents.models import Document, Folder
-from documents.views import DocumentViewSet, DocumentUploadRequestView, DocumentUploadFinalizeView
+from documents.views import (
+    DocumentViewSet,
+    DocumentUploadRequestView,
+    DocumentUploadFinalizeView,
+    DocumentVersionUploadRequestView,
+    DocumentVersionUploadFinalizeView,
+)
 from datarooms.views import DataroomViewSet
 from sharelinks.views import ShareLinkViewSet
 from analytics.views import AllViewSessionsView, ViewSessionDetailView
@@ -56,6 +62,8 @@ class TestMCPURLContracts:
             ("/api/v1/actions/move/", None),
             ("/api/v1/uploads/document/request/", DocumentUploadRequestView),
             ("/api/v1/uploads/document/finalize/", DocumentUploadFinalizeView),
+            (f"/api/v1/uploads/document/{sample_id}/versions/request/", DocumentVersionUploadRequestView),
+            (f"/api/v1/uploads/document/{sample_id}/versions/finalize/", DocumentVersionUploadFinalizeView),
             # Datarooms
             ("/api/v1/datarooms/", DataroomViewSet),
             (f"/api/v1/datarooms/{sample_id}/", DataroomViewSet),
@@ -288,3 +296,35 @@ class TestMCPIntegrationLiveContracts:
         nested_doc = Document.objects.get(id=nested_fin.json()["id"])
         assert nested_doc.folder_id == note_folder.id
 
+    @patch('documents.views.fileserver_client.get_file_info', return_value={'exists': True, 'size': 24})
+    @patch('documents.views.fileserver_client.generate_upload_url', return_value='http://fileserver/upload/tok-v2')
+    def test_version_upload_contract_preserves_document_and_share_link(
+        self, mock_gen_url, mock_file_info, mcp_api_client, document, share_link
+    ):
+        """MCP request_version_upload + finalize_version_upload promote v2 while keeping document ID and share link."""
+        req_res = mcp_api_client.post(
+            f"/api/v1/uploads/document/{document.id}/versions/request/",
+            {"file_name": "guide_v2.md", "file_size": 24},
+            format="json",
+        )
+        assert req_res.status_code == status.HTTP_200_OK
+        req_data = req_res.json()
+        assert "upload_url" in req_data
+        assert "storage_key" in req_data
+
+        fin_res = mcp_api_client.post(
+            f"/api/v1/uploads/document/{document.id}/versions/finalize/",
+            {
+                "storage_key": req_data["storage_key"],
+                "content_type": "text/markdown",
+            },
+            format="json",
+        )
+        assert fin_res.status_code == status.HTTP_202_ACCEPTED
+        doc_data = fin_res.json()
+        assert doc_data["id"] == str(document.id)
+        primary_versions = [v for v in doc_data["versions"] if v["is_primary"]]
+        assert len(primary_versions) == 1
+        assert primary_versions[0]["version_number"] == 2
+        share_link.refresh_from_db()
+        assert share_link.document_id == document.id
