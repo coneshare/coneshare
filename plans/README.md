@@ -67,6 +67,7 @@ These are pending implementation or active feature proposals:
 ### 🤖 [MCP & CLI](mcp/)
 * [remote_mcp_server_plan.md](mcp/remote_mcp_server_plan.md) — Remote FastMCP server architecture for agentic integration
 * [api-keys-mcp-setup-instructions.md](mcp/api-keys-mcp-setup-instructions.md) — API keys and MCP configuration setup guide
+* [mcp_read_document_content_plan.md](mcp/mcp_read_document_content_plan.md) — Read text document contents into AI context and retrieve signed download URLs over MCP
 
 ### ⚡ [Automations](automations/)
 * [automation-feature-impl.md](automations/automation-feature-impl.md) — Event-driven automation rules, webhooks, and destinations

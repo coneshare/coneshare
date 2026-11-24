@@ -38,7 +38,9 @@ Always prioritize **zero-friction execution**. Execute user requests instantly u
 - **Limit Exceeded Action**: If a directory/batch contains > 50 files, pause execution before uploading and advise the user to compress the folder into a `.zip` archive or select a subfolder/subset of key files.
 
 ### Updates & Modifications
-- **Update existing document content (keep existing share links)**:
+- **Read → Edit → Update existing document content (keep existing share links)**:
+  - To inspect an existing text/Markdown/CSV/JSON/YAML document first, call `read_text_document(document_id=...)` (for binary files like PDF/Office/video, use `get_document_download_url(document_id=...)`).
+  - **Retrieve all pages before replacing**: `update_text_document` uploads a complete replacement version. If `read_text_document` returns `truncated: true`, follow `next_offset` (`read_text_document(document_id=..., offset=next_offset)`) until `truncated` is `false`, concatenate all pages, and only then edit and submit the complete text (single-page documents where `truncated` is `false` need no extra call). If any page request fails, **halt immediately** and do **not** call `update_text_document`.
   - For Markdown/CSV/text content in context: use `update_text_document(document_id=..., content=...)`.
   - For local/binary files: use the 2-step version upload flow (`request_version_upload(document_id=..., file_name=..., file_size=...)` -> HTTP `PUT` -> `finalize_version_upload(document_id=..., storage_key=...)`).
   - Do **not** use `request_document_upload` or `create_text_document` when updating an existing document—those create a separate document with `(1)`/`(2)` suffix and leave existing share links pointing to the old file.

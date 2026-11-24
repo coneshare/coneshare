@@ -27,6 +27,10 @@ TEXT_CONTENT_TYPE_BY_EXTENSION: dict[str, str] = {
     ".yml": "application/yaml",
 }
 
+MAX_TEXT_READ_BYTES = 2 * 1024 * 1024
+DEFAULT_TEXT_READ_CHARS = 100_000
+MAX_TEXT_READ_CHARS = 200_000
+
 
 def _validate_resource_id(value: Any, name: str = "id") -> str:
     """
@@ -207,11 +211,15 @@ class ConeshareClient:
             parts = parts[:-1]
         return parts, ("/".join(parts) if parts else None)
 
-    def _resolve_upload_url(self, upload_url: str) -> str:
-        """Rewrite internal core file-server upload URLs when configured for container networking."""
+    def _resolve_fileserver_url(
+        self,
+        url: str,
+        prefixes: tuple[str, ...] = ("/files/upload/", "/files/download/"),
+    ) -> str:
+        """Rewrite internal core file-server URLs when configured for container networking."""
         internal_base = self.settings.fileserver_internal_url
-        parsed = urlparse(upload_url)
-        if internal_base and parsed.path.startswith("/files/upload/"):
+        parsed = urlparse(url)
+        if internal_base and any(parsed.path.startswith(prefix) for prefix in prefixes):
             base_parsed = urlparse(internal_base)
             base_path = base_parsed.path.rstrip("/")
             return urlunparse((
@@ -222,7 +230,11 @@ class ConeshareClient:
                 parsed.query,
                 parsed.fragment,
             ))
-        return upload_url
+        return url
+
+    def _resolve_upload_url(self, upload_url: str) -> str:
+        """Rewrite internal core file-server upload URLs when configured for container networking."""
+        return self._resolve_fileserver_url(upload_url, prefixes=("/files/upload/",))
 
     async def _upload_bytes(self, upload_url: str, data: bytes, content_type: str) -> None:
         target_url = self._resolve_upload_url(upload_url)
@@ -237,6 +249,50 @@ class ConeshareClient:
                     raise ValueError(f"Storage upload failed ({response.status_code}): {response.text}")
             except httpx.RequestError as exc:
                 raise ValueError(f"Network error uploading content to storage: {exc}") from exc
+
+    async def _download_bytes_bounded(self, download_url: str, max_bytes: int) -> bytes:
+        target_url = self._resolve_fileserver_url(download_url, prefixes=("/files/download/",))
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            try:
+                async with client.stream("GET", target_url) as response:
+                    if not response.is_success:
+                        err_chunks: list[bytes] = []
+                        err_size = 0
+                        async for chunk in response.aiter_bytes():
+                            err_chunks.append(chunk[: max(0, 4096 - err_size)])
+                            err_size += len(chunk)
+                            if err_size >= 4096:
+                                break
+                        err_text = b"".join(err_chunks).decode("utf-8", errors="replace").strip()
+                        raise ValueError(f"Storage download failed ({response.status_code}): {err_text}")
+
+                    content_length_raw = response.headers.get("Content-Length")
+                    content_length: Optional[int] = None
+                    if content_length_raw:
+                        try:
+                            content_length = int(content_length_raw)
+                        except ValueError:
+                            content_length = None
+
+                    if content_length is not None and content_length > max_bytes:
+                        raise ValueError(
+                            f"Document exceeds maximum readable text size ({max_bytes} bytes). "
+                            "Use get_document_download_url instead."
+                        )
+
+                    chunks: list[bytes] = []
+                    total_bytes = 0
+                    async for chunk in response.aiter_bytes():
+                        total_bytes += len(chunk)
+                        if total_bytes > max_bytes:
+                            raise ValueError(
+                                f"Document exceeds maximum readable text size ({max_bytes} bytes). "
+                                "Use get_document_download_url instead."
+                            )
+                        chunks.append(chunk)
+                    return b"".join(chunks)
+            except httpx.RequestError as exc:
+                raise ValueError(f"Network error downloading content from storage: {exc}") from exc
 
     # --- Documents API ---
 
@@ -568,6 +624,140 @@ class ConeshareClient:
             content_type=resolved_content_type,
         )
         return await self._apply_optional_description(doc, description)
+
+    @staticmethod
+    def _validate_read_document_ready(doc: Any, doc_id: str) -> dict[str, Any]:
+        if not isinstance(doc, dict) or doc.get("error"):
+            raise ValueError(f"Failed to retrieve document '{doc_id}'.")
+        if doc.get("status") == "uploading":
+            raise ValueError(f"Document '{doc_id}' is still uploading and not ready to read.")
+        return doc
+
+    @staticmethod
+    def _resolve_readable_text_type(doc: dict[str, Any]) -> tuple[str, str]:
+        versions = doc.get("versions")
+        primary_name = ""
+        if isinstance(versions, list):
+            for version in versions:
+                if isinstance(version, dict) and version.get("is_primary"):
+                    primary_name = str(version.get("file_name") or "").strip()
+                    break
+
+        doc_name = str(doc.get("name") or "").strip()
+        resolved_name = primary_name or doc_name
+
+        candidates = [
+            primary_name,
+            doc_name,
+            str(doc.get("original_storage_key") or "").strip(),
+            str(doc.get("storage_key") or "").strip(),
+        ]
+        resolved_ext = ""
+        for candidate in candidates:
+            if not candidate:
+                continue
+            _, ext = os.path.splitext(candidate)
+            if ext:
+                resolved_ext = ext.lower()
+                break
+
+        if resolved_ext:
+            if resolved_ext not in TEXT_CONTENT_TYPE_BY_EXTENSION:
+                supported = ", ".join(sorted(TEXT_CONTENT_TYPE_BY_EXTENSION))
+                raise ValueError(
+                    f"Document '{resolved_name or doc.get('id')}' has unsupported extension '{resolved_ext}' for inline text reading. "
+                    f"Supported extensions: {supported}. For binary files (PDF, Office, images, video), use get_document_download_url instead."
+                )
+            return resolved_name, TEXT_CONTENT_TYPE_BY_EXTENSION[resolved_ext]
+
+        raw_content_type = str(doc.get("content_type") or "").strip().lower()
+        if raw_content_type in set(TEXT_CONTENT_TYPE_BY_EXTENSION.values()):
+            return resolved_name, raw_content_type
+
+        if str(doc.get("type") or "").strip().lower() == "markdown":
+            return resolved_name, "text/markdown"
+
+        supported = ", ".join(sorted(TEXT_CONTENT_TYPE_BY_EXTENSION))
+        raise ValueError(
+            f"Document '{resolved_name or doc.get('id')}' is not a recognized text document. "
+            f"Supported extensions: {supported}. For binary files, use get_document_download_url instead."
+        )
+
+    async def read_text_document(
+        self,
+        document_id: str,
+        offset: int = 0,
+        max_chars: int = DEFAULT_TEXT_READ_CHARS,
+    ) -> dict[str, Any]:
+        """Read UTF-8 text content from an existing text document into context with bounded streaming and pagination."""
+        doc_id = _validate_resource_id(document_id, "document_id")
+        if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
+            raise ValueError("offset must be a non-negative integer.")
+        if isinstance(max_chars, bool) or not isinstance(max_chars, int) or not (1 <= max_chars <= MAX_TEXT_READ_CHARS):
+            raise ValueError(f"max_chars must be an integer between 1 and {MAX_TEXT_READ_CHARS}.")
+
+        doc = self._validate_read_document_ready(await self.get_document(doc_id), doc_id)
+        resolved_name, resolved_content_type = self._resolve_readable_text_type(doc)
+
+        raw_size = doc.get("file_size")
+        if isinstance(raw_size, int) and not isinstance(raw_size, bool) and raw_size > MAX_TEXT_READ_BYTES:
+            raise ValueError(
+                f"Document exceeds maximum readable text size ({MAX_TEXT_READ_BYTES} bytes). "
+                "Use get_document_download_url instead."
+            )
+
+        dl_res = await self._request("GET", f"/documents/{doc_id}/download/")
+        download_url = dl_res.get("download_url") if isinstance(dl_res, dict) else None
+        if not isinstance(dl_res, dict) or dl_res.get("error") or not download_url:
+            raise ValueError(f"Failed to retrieve download URL for document '{doc_id}'.")
+
+        raw_bytes = await self._download_bytes_bounded(str(download_url), MAX_TEXT_READ_BYTES)
+        try:
+            full_text = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValueError(
+                f"Document '{resolved_name or doc_id}' is not valid UTF-8 text. "
+                "Use get_document_download_url for binary files."
+            ) from exc
+
+        total_chars = len(full_text)
+        chunk = full_text[offset : offset + max_chars]
+        returned_chars = len(chunk)
+        next_pos = offset + returned_chars
+        truncated = next_pos < total_chars
+
+        return {
+            "document_id": str(doc.get("id") or doc_id),
+            "name": str(doc.get("name") or resolved_name),
+            "type": doc.get("type"),
+            "content_type": resolved_content_type,
+            "file_size": len(raw_bytes),
+            "content": chunk,
+            "offset": offset,
+            "returned_chars": returned_chars,
+            "total_chars": total_chars,
+            "truncated": truncated,
+            "next_offset": next_pos if truncated else None,
+        }
+
+    async def get_document_download_url(self, document_id: str) -> dict[str, Any]:
+        """Retrieve a temporary signed external download URL for the primary version of a document."""
+        doc_id = _validate_resource_id(document_id, "document_id")
+        doc = self._validate_read_document_ready(await self.get_document(doc_id), doc_id)
+
+        dl_res = await self._request("GET", f"/documents/{doc_id}/download/")
+        download_url = dl_res.get("download_url") if isinstance(dl_res, dict) else None
+        if not isinstance(dl_res, dict) or dl_res.get("error") or not download_url:
+            raise ValueError(f"Failed to retrieve download URL for document '{doc_id}'.")
+
+        return {
+            "document_id": str(doc.get("id") or doc_id),
+            "name": doc.get("name"),
+            "type": doc.get("type"),
+            "content_type": doc.get("content_type"),
+            "file_size": doc.get("file_size"),
+            "download_url": str(download_url),
+        }
 
     async def update_folder(self, folder_id: str, name: str) -> dict[str, Any]:
         f_id = _validate_resource_id(folder_id, "folder_id")

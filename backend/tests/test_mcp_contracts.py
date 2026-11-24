@@ -5,6 +5,7 @@ from rest_framework import status
 from documents.models import Document, Folder
 from documents.views import (
     DocumentViewSet,
+    DocumentDownloadView,
     DocumentUploadRequestView,
     DocumentUploadFinalizeView,
     DocumentVersionUploadRequestView,
@@ -57,6 +58,7 @@ class TestMCPURLContracts:
             ("/api/v1/documents/", DocumentViewSet),
             (f"/api/v1/documents/{sample_id}/", DocumentViewSet),
             (f"/api/v1/documents/{sample_id}/stats/", DocumentViewSet),
+            (f"/api/v1/documents/{sample_id}/download/", DocumentDownloadView),
             ("/api/v1/folders/", None),
             (f"/api/v1/folders/{sample_id}/", None),
             ("/api/v1/actions/move/", None),
@@ -328,3 +330,21 @@ class TestMCPIntegrationLiveContracts:
         assert primary_versions[0]["version_number"] == 2
         share_link.refresh_from_db()
         assert share_link.document_id == document.id
+
+    @patch('documents.views.fileserver_client.generate_download_url', return_value='https://app.coneshare.com/files/download/tok-dl')
+    def test_document_download_url_contract_works_with_read_only_key(
+        self, mock_gen_dl, user, document
+    ):
+        """MCP read_text_document / get_document_download_url work with read_only API keys."""
+        from rest_framework.test import APIClient
+        from core.models import APIKey
+        from core.authentication import generate_raw_api_key
+
+        raw_key, prefix, hashed = generate_raw_api_key()
+        APIKey.objects.create(user=user, name="MCP Read Key", prefix=prefix, hashed_key=hashed, tier="read_only")
+        read_client = APIClient()
+        read_client.credentials(HTTP_AUTHORIZATION=f"Bearer {raw_key}")
+
+        res = read_client.get(f"/api/v1/documents/{document.id}/download/")
+        assert res.status_code == status.HTTP_200_OK
+        assert res.json() == {"download_url": "https://app.coneshare.com/files/download/tok-dl"}
