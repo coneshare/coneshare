@@ -164,6 +164,7 @@ def _resolve_dataroom_document_setting(link: ShareLink, requested_dataroom_docum
     """
     Resolve the per-link setting row for one dataroom item.
 
+    Always excludes soft-deleted documents in Trash (`deleted_at` is set).
     `requested_dataroom_document_id` must be a DataroomDocument.id (not Document.id).
     """
     # Prefetch document and up to 4 ancestor folder levels so get_full_path()
@@ -171,7 +172,7 @@ def _resolve_dataroom_document_setting(link: ShareLink, requested_dataroom_docum
     base_qs = link.dataroom_settings.select_related(
         'dataroom_document__document',
         'dataroom_document__folder__parent__parent__parent__parent',
-    )
+    ).filter(dataroom_document__document__deleted_at__isnull=True)
     if visible_only:
         # Public document/page/download endpoints should only operate on visible items.
         base_qs = base_qs.filter(is_visible=True)
@@ -556,11 +557,11 @@ def _resolve_qna_context_for_link(link: ShareLink, dataroom_document_id=None, da
         return {'dataroom': link.dataroom}
 
     if dataroom_document_id:
-        setting = link.dataroom_settings.filter(
-            dataroom_document_id=dataroom_document_id,
-            is_visible=True,
-        ).select_related('dataroom_document__document', 'dataroom_document__folder').first()
-        if not setting or not _is_dataroom_folder_path_visible(link, setting.dataroom_document.folder):
+        try:
+            setting = _resolve_dataroom_document_setting(
+                link, str(dataroom_document_id), visible_only=True
+            )
+        except ShareLinkDataroomSetting.DoesNotExist:
             raise PermissionDenied("You do not have permission to access Q&A for this document.")
         return {
             'dataroom': link.dataroom,

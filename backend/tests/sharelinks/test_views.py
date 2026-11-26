@@ -14,8 +14,9 @@ from django.utils.text import get_valid_filename
 from rest_framework import status
 
 from datarooms.models import Dataroom, DataroomCollaborator, DataroomDocument, DataroomFolder, DataroomItemOrder
-from documents.models import (Document, DocumentPage, DocumentVersion)
+from documents.models import Document, DocumentPage, DocumentVersion, Folder
 from documents.renderers.base import BasePreviewRenderer
+from documents.services import restore_item, soft_delete_document, soft_delete_folder
 from sharelinks.models import (DataroomVisit, EmailVerificationToken, PageView,
                                PreviewSession, ShareLink,
                                ShareLinkDataroomSetting, ViewSession, LinkClick)
@@ -4576,6 +4577,95 @@ class TestWatermarkingViews:
         # Before the fix, this would be 200 OK. After, it should be 403 Forbidden.
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert "permission to download" in response.data['message']
+
+    def test_dataroom_soft_deleted_document_denied_across_all_item_endpoints(
+        self, public_client, user, dataroom_with_watermarked_link
+    ):
+        """
+        Regression test: Moving a document to Trash (soft delete) must block all per-item
+        dataroom share link endpoints (view-data, page, render-page, download-file, record-visit),
+        and restoring it from Trash should make it accessible again.
+        """
+        link = dataroom_with_watermarked_link['link']
+        document = dataroom_with_watermarked_link['document']
+        ddoc = dataroom_with_watermarked_link['ddoc']
+
+        setting = link.dataroom_settings.get(dataroom_document=ddoc)
+        setting.is_visible = True
+        setting.allow_download = True
+        setting.enable_watermark = False
+        setting.save()
+
+        self._authorize_link_session(public_client, link)
+        view_session = ViewSession.objects.create(share_link=link)
+
+        # Soft-delete the underlying document (move to Trash)
+        soft_delete_document(document, user)
+
+        # 1. Root listing must omit it
+        listing_resp = public_client.get(f'/api/v1/links/{link.slug}/view-data/')
+        assert listing_resp.status_code == status.HTTP_200_OK
+        assert listing_resp.data['items'] == []
+
+        # 2. Per-item view-data must deny access
+        view_resp = public_client.get(f'/api/v1/links/{link.slug}/view-data/?dataroom_document_id={ddoc.id}')
+        assert view_resp.status_code == status.HTTP_403_FORBIDDEN
+
+        # 3. Direct page image endpoint (unwatermarked) must deny access
+        page_resp = public_client.get(f'/api/v1/links/{link.slug}/page/1/?dataroom_document_id={ddoc.id}')
+        assert page_resp.status_code == status.HTTP_403_FORBIDDEN
+
+        # 4. Watermarked page render endpoint must deny access
+        setting.enable_watermark = True
+        setting.save()
+        render_resp = public_client.get(f'/api/v1/links/{link.slug}/render-page/1/?dataroom_document_id={ddoc.id}')
+        assert render_resp.status_code == status.HTTP_403_FORBIDDEN
+
+        # 5. File download endpoint must deny access
+        download_resp = public_client.get(f'/api/v1/links/{link.slug}/download-file/?dataroom_document_id={ddoc.id}')
+        assert download_resp.status_code == status.HTTP_403_FORBIDDEN
+
+        # 6. Visit recording endpoint must reject deleted document
+        visit_resp = public_client.post(
+            f'/api/v1/view-sessions/{view_session.id}/record-visit/',
+            {'dataroom_document_id': str(ddoc.id)},
+            format='json',
+        )
+        assert visit_resp.status_code == status.HTTP_404_NOT_FOUND
+
+        # Restoring from Trash makes it accessible again
+        restore_item(document, 'document', user)
+        restored_resp = public_client.get(f'/api/v1/links/{link.slug}/view-data/?dataroom_document_id={ddoc.id}')
+        assert restored_resp.status_code == status.HTTP_200_OK
+
+    def test_dataroom_document_in_soft_deleted_folder_denied(
+        self, public_client, user, dataroom, document_with_page
+    ):
+        """
+        Regression test: Soft-deleting a personal folder cascades deleted_at to its documents,
+        which must also block access via dataroom share links.
+        """
+        root_folder = Folder.objects.get_root_for_org(user.organization)
+        personal_folder = Folder.objects.create(
+            name="Confidential Folder",
+            organization=user.organization,
+            created_by=user,
+            parent=root_folder,
+        )
+        document_with_page.folder = personal_folder
+        document_with_page.save(update_fields=['folder'])
+
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document_with_page)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user, allow_download=True)
+        self._authorize_link_session(public_client, link)
+
+        soft_delete_folder(personal_folder, user)
+
+        view_resp = public_client.get(f'/api/v1/links/{link.slug}/view-data/?dataroom_document_id={ddoc.id}')
+        assert view_resp.status_code == status.HTTP_403_FORBIDDEN
+
+        download_resp = public_client.get(f'/api/v1/links/{link.slug}/download-file/?dataroom_document_id={ddoc.id}')
+        assert download_resp.status_code == status.HTTP_403_FORBIDDEN
 
     @patch('sharelinks.views.requests.get')
     @patch('sharelinks.views.fileserver_client.generate_download_url')

@@ -5,6 +5,7 @@ from rest_framework import status
 
 from datarooms.models import DataroomDocument, DataroomFolder
 from documents.models import Document, DocumentVersion
+from documents.services import soft_delete_document
 from sharelinks.models import QnAMessage, QnAThread, ShareLink, ShareLinkDataroomSetting, ViewSession
 
 
@@ -748,3 +749,55 @@ def test_owner_can_still_moderate_existing_threads_after_qna_is_disabled(
     assert response.status_code == status.HTTP_200_OK
     thread.refresh_from_db()
     assert thread.status == QnAThread.STATUS_CLOSED
+
+
+def test_qna_endpoints_deny_soft_deleted_dataroom_document(public_client, user, dataroom):
+    """Regression test: Q&A endpoints must deny access for soft-deleted dataroom documents."""
+    document = _create_ready_document(user, user.organization, 'Secret.pdf')
+    ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document, name='Secret.pdf')
+    link = ShareLink.objects.create(dataroom=dataroom, created_by=user, enable_qna=True)
+    view_session = ViewSession.objects.create(share_link=link, viewer_email='viewer@example.com')
+    thread = QnAThread.objects.create(
+        organization=user.organization,
+        share_link=link,
+        dataroom=dataroom,
+        dataroom_document=ddoc,
+        subject='Question before delete',
+        created_by_view_session=view_session,
+    )
+
+    soft_delete_document(document, user)
+
+    summary_resp = public_client.get(
+        f'/api/v1/links/{link.slug}/qna-summary/?view_session_id={view_session.id}&dataroom_document_id={ddoc.id}'
+    )
+    assert summary_resp.status_code == status.HTTP_403_FORBIDDEN
+
+    list_resp = public_client.get(
+        f'/api/v1/links/{link.slug}/qna-threads/?view_session_id={view_session.id}&dataroom_document_id={ddoc.id}'
+    )
+    assert list_resp.status_code == status.HTTP_403_FORBIDDEN
+
+    create_resp = public_client.post(
+        f'/api/v1/links/{link.slug}/qna-threads/',
+        {
+            'view_session_id': str(view_session.id),
+            'dataroom_document_id': str(ddoc.id),
+            'subject': 'Question after delete',
+            'body': 'Should be blocked.',
+        },
+        format='json',
+    )
+    assert create_resp.status_code == status.HTTP_403_FORBIDDEN
+
+    msg_list_resp = public_client.get(
+        f'/api/v1/links/{link.slug}/qna-threads/{thread.id}/messages/?view_session_id={view_session.id}'
+    )
+    assert msg_list_resp.status_code == status.HTTP_403_FORBIDDEN
+
+    msg_post_resp = public_client.post(
+        f'/api/v1/links/{link.slug}/qna-threads/{thread.id}/messages/',
+        {'view_session_id': str(view_session.id), 'body': 'Reply after delete'},
+        format='json',
+    )
+    assert msg_post_resp.status_code == status.HTTP_403_FORBIDDEN

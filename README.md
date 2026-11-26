@@ -214,6 +214,9 @@ Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for ou
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/pagatino-afk"><img src="https://avatars.githubusercontent.com/u/256631749?v=4?s=100" width="100px;" alt="Agatino Platania"/><br /><sub><b>Agatino Platania</b></sub></a><br /><a href="https://github.com/coneshare/coneshare/commits?author=pagatino-afk" title="Code">💻</a> <a href="https://github.com/coneshare/coneshare/commits?author=pagatino-afk" title="Tests">⚠️</a> <a href="https://github.com/coneshare/coneshare/issues?q=author%3Apagatino-afk" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Industry"><img src="https://avatars.githubusercontent.com/u/413149?v=4?s=100" width="100px;" alt="Industry"/><br /><sub><b>Industry</b></sub></a><br /><a href="https://github.com/coneshare/coneshare/commits?author=Industry" title="Code">💻</a> <a href="https://github.com/coneshare/coneshare/commits?author=Industry" title="Tests">⚠️</a> <a href="https://github.com/coneshare/coneshare/issues?q=author%3AIndustry" title="Bug reports">🐛</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/kta1kri"><img src="https://avatars.githubusercontent.com/u/77656895?v=4?s=100" width="100px;" alt="kta1kri"/><br /><sub><b>kta1kri</b></sub></a><br /><a href="https://github.com/coneshare/coneshare/issues?q=author%3Akta1kri" title="Bug reports">🐛</a></td>
+    </tr>
   </tbody>
 </table>
 
