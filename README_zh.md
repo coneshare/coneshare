@@ -5,29 +5,70 @@
 [![Build CI](https://github.com/coneshare/coneshare/actions/workflows/build-ci.yml/badge.svg)](https://github.com/coneshare/coneshare/actions/workflows/build-ci.yml)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/coneshare/coneshare)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Documentation](https://img.shields.io/badge/docs-coneshare-blue)](https://docs.coneshare.com/zh/)
+[![Documentation](https://img.shields.io/badge/docs-coneshare-blue)](https://docs.coneshare.com/en/)
 
 # Coneshare
 
-Coneshare 是 DocSend 的开源自托管替代方案，直接运行在您现有的存储之上（Nextcloud、Google Drive 或 Dropbox）。文件始终保留在您自己的服务器中，无需转存至第三方云平台。
+Coneshare 是开源、可自托管的 DocSend 替代品与虚拟数据室（Virtual Data Room），不按人头收费，文件留在您自己的服务器上。
 
-使用 Coneshare 安全分享文档与视频：添加动态水印，实时逐页追踪访客阅读动态，并根据访问行为自动触发工作流。
+支持从 Nextcloud、Google Drive、Dropbox 导入文件，或直接存储在本地磁盘与 MinIO 等对象存储中。在此基础上提供虚拟资料室、动态水印、NDA 签署门禁、逐页阅读时长统计、视频流预览，以及面向 ChatGPT、Claude、Gemini 和 Cursor 的远程 MCP 服务。
 
-[快速开始](https://github.com/coneshare/coneshare-compose) · [文档](https://docs.coneshare.com/zh/) · [在线演示](https://www.coneshare.com/demo) · [路线图](https://github.com/orgs/coneshare/projects/2/) · [论坛](https://github.com/orgs/coneshare/discussions)
+[快速部署](https://github.com/coneshare/coneshare-compose) · [在线演示 Demo](https://www.coneshare.com/zh/demo) · [文档 (EN)](https://docs.coneshare.com/en/) · [部署与托管服务](https://www.coneshare.com/zh/pricing) · [讨论区](https://github.com/orgs/coneshare/discussions)
 
 如果这个项目对您有帮助，欢迎给仓库点个 Star。
 
+### 产品预览
+
+| 品牌化虚拟资料室（VDR） | 逐页阅读时长与访客分析 |
+| :---: | :---: |
+| ![品牌化虚拟资料室](./portal/public/screenshots/feat-vdr-viewer.png) | ![逐页阅读分析](./portal/public/screenshots/feat-analytics.png) |
+| **动态水印与安全预览** | **远程 MCP（ChatGPT / Claude / Gemini / Cursor）** |
+| ![动态水印预览](./portal/public/screenshots/preview-pdf.png) | ![远程 MCP Server](./portal/public/screenshots/agent-poster.jpg) |
+
 <p align="center">
-  <em>▶ <a href="https://assets.coneshare.com/coneshare-walkthrough-v1.mp4"><strong>点击此处观看 2 分钟产品功能完整演示视频</strong></a></em>
+  <em>▶ <a href="https://assets.coneshare.com/coneshare-walkthrough-v1.mp4"><strong>点击观看 2 分钟产品演示视频</strong></a></em>
 </p>
+
+---
+
+## 方案对比
+
+| | Coneshare（MIT 开源自建） | DocSend（闭源 SaaS） | Papermark（云版 / 免费自托管版） |
+| :--- | :--- | :--- | :--- |
+| **开源版包含虚拟资料室（VDR）** | 包含 | 闭源付费 | 免费自托管版不含 Data Rooms |
+| **动态水印与 NDA 门禁** | 包含（MIT） | 仅高阶套餐 | 商业用途或完整 VDR 需付费授权 |
+| **团队席位与外部访客** | 不限人数 | 按席位收费（`$180/月` 起 + `$60/人/月`） | 云版按席位收费 |
+| **数据主权与存储位置** | 自有服务器 | 第三方云端 | 云版为第三方托管；商用自建 VDR 需购买授权 |
+
+### 社区定制案例
+
+已有开发团队与系统集成商基于 Coneshare 的 MIT 开源代码进行二次开发：
+
+- 沙特的一家方案商基于它做白标定制，用于当地医疗诊所的文档协作与文件收集，满足 PDPL 数据本地化要求。
+- 一家碳信用团队将其改造为投资人尽调门户，把受控文档与外部实时遥测页面结合在一起。
+- 也有分支用于投融资与并购交易评估，加入 NDA 门禁、水印和逐页访问追踪。
+
+---
+
+## 部署与托管服务
+
+MIT 开源版免费使用，不限制成员和访客数。如果不想自己折腾服务器、SSL、SMTP 和视频转码，我们也提供三项付费服务。小额支持 PayPal 或信用卡支付，年付和大额对公订单支持银行电汇与正式商业发票。
+
+| 服务 | 价格（USD） | 适用对象 | 包含内容 |
+| :--- | :--- | :--- | :--- |
+| **Done-For-You Setup** | `$299` 一次性 | 想快速上线的创始人与小团队 | 1 到 2 个工作日内完成云主机或 VPS 部署、域名与 SSL/SMTP 配置、存储与水印调优、1 次管理员培训，以及 14 天排障保障 |
+| **Managed BYOC** | `$199 / 月`（3 个月起 `$597`）或 `$1,999 / 年` | 咨询、律所及 B2B 团队 | 部署在您自己的云账号内，包含安全更新、备份检查与 1 个工作日内邮件技术支持 |
+| **Support & Advisory** | `$150 / 小时` | 正在自建或二开的工程团队与集成商 | 通过邮件、Slack 或远程会议提供排障、性能调优、架构审查与升级指导 |
+
+完整方案与成本对比见 [coneshare.com/zh/pricing](https://www.coneshare.com/zh/pricing)，也可直接发邮件至 [dev@coneshare.com](mailto:dev@coneshare.com?subject=Coneshare%20Setup%20%2F%20Hosting%20Inquiry)。
 
 ---
 
 ## 工作原理
 
-Coneshare 直接运行在您的现有存储之上：
+Coneshare 运行在您自己的基础设施之上：
 
-- 文件保留在您的存储提供商中（Nextcloud、Google Drive 或 Dropbox）。
+- 支持从 Nextcloud、Google Drive 或 Dropbox 导入文件，或直接上传至自有服务器存储（本地磁盘 / MinIO）。
 - Coneshare 提供：
   - 虚拟资料室与多媒体预览
   - 访问控制与链接权限
@@ -88,7 +129,7 @@ Coneshare 可连接：
 
 ## 部署（自托管）
 
-生产环境部署请使用 [coneshare-compose 仓库](https://github.com/coneshare/coneshare-compose)。该仓库提供了包含自动化 Let's Encrypt SSL、反向代理以及预置容器配置的 Docker Compose 方案。
+生产环境部署请使用 [coneshare-compose 仓库](https://github.com/coneshare/coneshare-compose)。
 
 ---
 
@@ -185,7 +226,7 @@ Coneshare 由四个主要服务组成：
 
 ## 社区
 
-* 文档: [https://docs.coneshare.com/zh/](https://docs.coneshare.com/zh/)
+* 文档: [https://docs.coneshare.com/en/](https://docs.coneshare.com/en/)
 * 讨论区: [https://github.com/orgs/coneshare/discussions](https://github.com/orgs/coneshare/discussions)
 * 邮箱: [dev@coneshare.com](mailto:dev@coneshare.com)
 

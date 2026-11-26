@@ -1,14 +1,15 @@
 import { PricingContent } from './PricingContent';
 
 export const metadata = {
-  title: 'Pricing & Plans - Self-Hosted Virtual Dataroom (VDR) | ConeShare',
+  title: 'Pricing & Plans - Self-Hosted Virtual Dataroom (VDR) & Managed BYOC | ConeShare',
   description:
-    'No per-seat pricing and no team size limits. Choose open-source Community, commercial self-hosted Pro, Managed BYOC private cloud, or Enterprise for high availability and custom engineering — with data residency in your own cloud.',
+    'No per-seat pricing and no team size limits. Deploy open-source Community for free, book $299 Done-For-You self-hosted setup, or choose Managed BYOC private cloud hosting — with data residency on your own servers.',
   keywords: [
     'ConeShare pricing',
     'virtual dataroom cost',
     'DocSend alternative pricing',
     'self hosted vdr',
+    'done for you self hosted setup',
     'byoc dataroom',
     'vdr price comparison',
   ],

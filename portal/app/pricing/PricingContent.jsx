@@ -126,12 +126,12 @@ export function PricingContent() {
 
   const faqs = [
     {
-      q: 'If the Community Edition is open source under the MIT license, why choose Pro or Managed BYOC?',
-      a: 'The Community Edition includes our full core VDR features, with no restrictions on NDA gates or dynamic watermarks. If your organization needs white-labeling (removing the Powered by badge), SSO/LDAP integration, cross-document full-text search, or audit log exports, choose self-hosted Pro ($2,999/year). If you just want to offload deployment, video transcoding, SSL certificate renewals, and database backups, you can subscribe to Managed BYOC ($1,999/year or $199/month) even with the open-source Community Edition; if you need both Pro features and managed operations, simply combine them ($4,998/year total).',
+      q: 'If the Community Edition is open source under the MIT license, why choose Done-For-You Setup or Managed BYOC?',
+      a: 'The Community Edition includes our full core VDR features — dynamic watermarks, click-through NDA gates, Q&A, and page-by-page analytics — with unlimited seats. If you want to skip server provisioning, SSL certificates, SMTP setup, and video transcoding tuning, you can book our $299 one-time Done-For-You Setup (delivered in 1–2 business days, then 100% yours to manage) or subscribe to Managed BYOC ($1,999/year or $199/month, 3-month minimum) for ongoing security updates, backup verification, and engineering ops support.',
     },
     {
-      q: 'How should our team choose between Pro, Managed BYOC, and Enterprise?',
-      a: 'All paid plans include unlimited team members and external visitors. Managed BYOC ($1,999/year) is a pure managed private-cloud operations add-on (excluding a Pro license) ideal for smaller teams running the open-source Community Edition without in-house DevOps. Pro ($2,999/year) unlocks white-labeling, SSO (SAML 2.0 / OIDC / Okta / Azure AD / LDAP), full-text search, and compliance audit logs (add Managed BYOC for $4,998/year total if you also want managed operations). Enterprise is built for larger organizations that need multi-tenancy, multi-node high-availability clusters, air-gapped offline deployments, a priority Slack SLA (within 24 hours), and custom co-development.',
+      q: 'What is the difference between Done-For-You Setup ($299) and Managed BYOC ($1,999/year)?',
+      a: 'Both deploy the full open-source edition inside your own cloud account or VPS (AWS, GCP, Azure, or private server) with unlimited internal seats and external viewers. Done-For-You Setup ($299 one-time) covers complete production installation, custom domain/SSL, SMTP, storage integration, 1x admin onboarding session, and a 14-day post-delivery warranty — with no recurring fees. Managed BYOC adds continuous ongoing operations: off-peak security upgrades, large-file/video tuning, regular database backup verification, and 1-business-day email ops support.',
     },
     {
       q: 'What happens if we stop subscribing to Managed BYOC? Do you offer refunds?',
@@ -142,16 +142,12 @@ export function PricingContent() {
       a: 'Server sizing depends primarily on the volume of shared documents and videos rather than team headcount. For teams sharing mainly PDFs, a 4 vCPU / 4GB RAM instance (~$40-$60/month on AWS or GCP) comfortably supports 50 users. If you have high volumes of HD video transcoding, we recommend 8 vCPU / 16GB RAM (~$120-$160/month). You pay your cloud provider directly with zero markups from us.',
     },
     {
-      q: 'How does custom co-development work in Enterprise?',
-      a: "Your team works directly with our core engineers. If a requested feature (such as a specific auth plugin, webhook, or compliance report) aligns with ConeShare's product roadmap, we prioritize and ship it to the main release within 2-4 weeks. For bespoke workflows specific to your organization, we can maintain an independent private branch long-term.",
+      q: 'When will Pro commercial licensing and Enterprise custom plans be available?',
+      a: 'Pro ($2,999/year — full white-labeling, AD/LDAP/ADFS sync, cross-document full-text search, and compliance audit logs) and Enterprise (from $9,999/year — multi-tenancy, HA clusters, air-gapped offline delivery, and custom co-development) are open for early access inquiries. Email dev@coneshare.com with your requirements and timeline to connect directly with our engineering team.',
     },
     {
-      q: 'Can we purchase a commercial license for self-hosted or air-gapped deployment without granting VPC access?',
-      a: 'Yes. With a self-hosted Pro license, you can unlock white-labeling, SSO/LDAP, full-text search, and compliance audit logs on your own servers without granting VPC access to our team. For strict compliance environments requiring physically isolated air-gapped networks or high-availability clusters, choose Enterprise for offline delivery.',
-    },
-    {
-      q: 'How does billing and invoicing work for annual contracts?',
-      a: 'We support corporate bank wire transfers (ACH, Wire, SWIFT). Once the order is confirmed, we issue a formal commercial invoice alongside our standard corporate agreement.',
+      q: 'How do payments and invoicing work?',
+      a: 'For smaller orders ($150/hr Support, $299 Done-For-You Setup, and quarterly Managed BYOC), we support PayPal Invoice — you can pay directly via PayPal or major credit/debit cards without needing a PayPal account. For annual contracts and larger B2B orders, we support corporate bank wire transfers (SWIFT) with a formal Commercial Invoice.',
     },
   ];
 
@@ -161,11 +157,11 @@ export function PricingContent() {
       <div className="px-6 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
           <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-            Plans & Pricing
+            Simple Pricing. Zero Seat Tax.
           </h1>
 
           <p className="mt-4 text-base leading-7 text-gray-600 max-w-2xl mx-auto">
-            Deploy our open-source Community edition for free with Docker; choose Pro to unlock white-labeling, SSO, and compliance audit logs; add Managed BYOC for hands-off deployment and operations in your private cloud (for either Community or Pro); or choose Enterprise for high availability and custom engineering.
+            Every plan includes <strong>unlimited team members and external visitors</strong>, with files and instances staying 100% on your own servers or cloud account. Self-host free with Docker, book a $299 turnkey setup, or let our engineers manage your private cloud (Managed BYOC).
           </p>
         </div>
 
@@ -186,23 +182,23 @@ export function PricingContent() {
               <p className="mt-1 text-xs text-gray-400">MIT Open Source License • Self-hosted via Docker</p>
 
               <div className="mt-8 border-t border-gray-100 pt-6">
-                <p className="text-xs font-semibold text-gray-900">Included features:</p>
+                <p className="text-xs font-semibold text-gray-900">Full core features included:</p>
                 <ul className="mt-4 space-y-3 text-sm text-gray-600">
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Core VDR features: structured folders, dynamic watermarks, NDA gates, Q&A, and page-by-page analytics</span>
+                    <span>Complete VDR: virtual datarooms, dynamic watermarks, NDA gates, Q&A, and page-by-page analytics</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Unlimited team seats and share links</span>
+                    <span>Unlimited team seats, datarooms, and share links</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Mount local storage, Nextcloud, Google Drive, or Dropbox</span>
+                    <span>Connect local storage, Nextcloud, Google Drive, or Dropbox</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Self-managed Docker containers, logs, SSL certificates, and database backups</span>
+                    <span>Native remote MCP server for Claude, Cursor, and ChatGPT</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
@@ -219,7 +215,7 @@ export function PricingContent() {
                 rel="noopener noreferrer"
                 className="inline-flex w-full items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 transition"
               >
-                Deploy with Docker
+                Deploy Free with Docker
                 <ExternalLink className="ml-1.5 h-3.5 w-3.5 text-gray-400" />
               </a>
               <div className="mt-2.5 text-center">
@@ -235,50 +231,51 @@ export function PricingContent() {
             </div>
           </div>
 
-          {/* Tier 2: Pro */}
-          <div className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-8 shadow-sm transition hover:border-gray-300">
+          {/* Tier 2: Done-For-You Setup */}
+          <div className="relative flex flex-col justify-between rounded-2xl border-2 border-gray-900 bg-white p-8 shadow-md">
             <div>
-              <h3 className="text-xl font-bold tracking-tight text-gray-900">Pro</h3>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xl font-bold tracking-tight text-gray-900">Done-For-You Setup</h3>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                  Fastest Launch
+                </span>
+              </div>
               <p className="mt-2 text-sm text-gray-600 min-h-[40px]">
-                Self-hosted commercial edition with all enterprise features (unlimited seats), keeping data and instances in your own cloud.
+                One-time white-glove production deployment on your own cloud or VPS in 1–2 business days. No recurring lock-in.
               </p>
 
               <div className="mt-6 flex items-baseline whitespace-nowrap">
-                <span className="text-4xl font-bold tracking-tight text-gray-900">$2,999</span>
-                <span className="ml-1.5 text-sm font-medium text-gray-500">/ year</span>
+                <span className="text-4xl font-bold tracking-tight text-gray-900">$299</span>
+                <span className="ml-1.5 text-sm font-medium text-gray-500">/ one-time</span>
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                Unlimited team members and external visitors
+                Unlimited seats &amp; viewers • 100% yours after handoff
               </p>
 
               <div className="mt-8 border-t border-gray-100 pt-6">
                 <p className="text-xs font-semibold text-gray-900">
-                  Includes everything in Community, plus:
+                  End-to-end delivery by our engineers:
                 </p>
                 <ul className="mt-4 space-y-3 text-sm text-gray-600">
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>White-labeling: remove Powered by badge, customize brand colors, favicon, and more</span>
+                    <span>Production deployment on your AWS, GCP, Azure, or private VPS</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Enterprise SSO, AD/LDAP directory sync, and ADFS integration</span>
+                    <span>Custom domain, automated HTTPS/SSL, and transactional SMTP setup</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Cross-document full-text search across PDF, Office, and Markdown for internal users and dataroom visitors</span>
+                    <span>Storage setup (Nextcloud, Google Drive, Dropbox, or local) plus watermark &amp; preview tuning</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Compliance audit logs and security event export</span>
+                    <span>1x remote admin onboarding session + 14-day post-delivery troubleshooting warranty</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Self-hosted commercial licensing on your own cloud or servers with zero vendor lock-in</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Technical support: email response within 1 business day from our engineering team</span>
+                    <span>Zero vendor lock-in: data and instances stay 100% on your server</span>
                   </li>
                 </ul>
               </div>
@@ -286,57 +283,57 @@ export function PricingContent() {
 
             <div className="mt-8 pt-4 border-t border-gray-100">
               <a
-                href="mailto:dev@coneshare.com?subject=ConeShare%20Pro%20Inquiry"
+                href="mailto:dev@coneshare.com?subject=ConeShare%20Done-For-You%20Setup%20(%24299)"
                 className="inline-flex w-full items-center justify-center rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 transition"
               >
-                Contact Sales for Pro
+                Book Turnkey Setup ($299)
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </a>
               <p className="mt-2 text-center text-xs text-gray-500">
-                Corporate wire transfers and commercial invoices supported
+                1–2 business days • PayPal, Credit Card, or Wire Transfer
               </p>
             </div>
           </div>
 
-          {/* Tier 3: Enterprise */}
+          {/* Tier 3: Managed BYOC */}
           <div className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-8 shadow-sm transition hover:border-gray-300">
             <div>
-              <h3 className="text-xl font-bold tracking-tight text-gray-900">Enterprise</h3>
+              <h3 className="text-xl font-bold tracking-tight text-gray-900">Managed BYOC</h3>
               <p className="mt-2 text-sm text-gray-600 min-h-[40px]">
-                Built for mid-to-large organizations requiring HA clusters, air-gapped offline delivery, strict SLAs, and custom engineering.
+                Official managed private cloud: deployed inside your own cloud account, continuously upgraded and backed up by our team.
               </p>
 
               <div className="mt-6 flex items-baseline whitespace-nowrap">
-                <span className="text-sm font-medium text-gray-500 mr-1.5">from</span>
-                <span className="text-4xl font-bold tracking-tight text-gray-900">$9,999</span>
+                <span className="text-4xl font-bold tracking-tight text-gray-900">$1,999</span>
                 <span className="ml-1.5 text-sm font-medium text-gray-500">/ year</span>
+                <span className="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                  ~$167/mo
+                </span>
               </div>
-              <p className="mt-1 text-xs text-gray-500">Dedicated HA architecture and custom co-development roadmap</p>
+              <p className="mt-1 text-xs text-gray-500">
+                Or <strong className="text-gray-700">$199 / month</strong> (3-mo min $597) • 14-day refund guarantee
+              </p>
 
               <div className="mt-8 border-t border-gray-100 pt-6">
                 <p className="text-xs font-semibold text-gray-900">
-                  Includes everything in Pro, plus:
+                  Includes everything in Done-For-You Setup, plus:
                 </p>
                 <ul className="mt-4 space-y-3 text-sm text-gray-600">
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Multi-tenancy architecture with isolated Multi-Org management</span>
+                    <span>Large-file transcoding, video streaming, and centralized log tuning</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>HA and offline delivery: multi-node high-availability clusters or fully air-gapped on-prem deployments</span>
+                    <span>Off-peak security updates and regular database backup verification</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Priority SLA: dedicated Slack channel with engineering response and resolution within 24 hours</span>
+                    <span>Managed ops support: 1-business-day email response from core engineers</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Co-development: shared features prioritized in 2-4 weeks; dedicated private branches for bespoke workflows</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Standard corporate procurement agreements, POC trials, and compliance architecture assistance</span>
+                    <span>Zero vendor lock-in: your instance keeps running even if you cancel</span>
                   </li>
                 </ul>
               </div>
@@ -344,84 +341,48 @@ export function PricingContent() {
 
             <div className="mt-8 pt-4 border-t border-gray-100">
               <a
-                href="mailto:dev@coneshare.com?subject=ConeShare%20Enterprise%20Inquiry"
+                href="mailto:dev@coneshare.com?subject=ConeShare%20Managed%20BYOC%20Inquiry"
+                className="inline-flex w-full items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 transition"
+              >
+                Request Managed Deployment
+                <ArrowRight className="ml-1.5 h-4 w-4" />
+              </a>
+              <p className="mt-2 text-center text-xs text-gray-500">
+                Unlimited seats • PayPal, Credit Card, or Wire + Invoice
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Pro & Enterprise Early Access Banner */}
+        <div className="mx-auto mt-10 max-w-7xl rounded-2xl border border-gray-200 bg-gray-50/70 p-8 shadow-sm">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h3 className="text-xl font-bold tracking-tight text-gray-900">
+                  Pro Licensing &amp; Enterprise Custom Plans
+                </h3>
+                <span className="rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-semibold text-gray-700">
+                  Early Access / Contact Sales
+                </span>
+              </div>
+
+              <p className="mt-3 text-sm leading-6 text-gray-600 max-w-3xl">
+                Built for larger organizations with strict compliance or bespoke workflows: <strong>Pro ($2,999 / year)</strong> adds full white-labeling (remove Powered by badge), AD/LDAP/ADFS sync, cross-document full-text search, and compliance audit log export. <strong>Enterprise (from $9,999 / year)</strong> adds multi-tenancy (Multi-Org), HA clusters or air-gapped offline delivery, a dedicated 24-hour Slack SLA, and custom co-development.
+              </p>
+            </div>
+
+            <div className="lg:w-72 lg:flex-shrink-0">
+              <a
+                href="mailto:dev@coneshare.com?subject=ConeShare%20Pro%20%2F%20Enterprise%20Inquiry"
                 className="inline-flex w-full items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 transition"
               >
                 Contact Engineering Team
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </a>
               <p className="mt-2 text-center text-xs text-gray-500">
-                POC trials and compliance support available
+                Corporate agreements &amp; compliance reviews supported
               </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Managed BYOC Add-on Section */}
-        <div className="mx-auto mt-10 max-w-7xl rounded-2xl border-2 border-gray-900 bg-gray-50/70 p-8 shadow-sm">
-          <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex-1">
-              <h3 className="text-xl font-bold tracking-tight text-gray-900">
-                Managed BYOC (Official Managed Private Cloud)
-              </h3>
-
-              <p className="mt-3 text-sm leading-6 text-gray-600 max-w-3xl">
-                Our team handles deployment and ongoing operations while keeping all data and instances inside your own cloud account. This service excludes a Pro license, making it ideal for teams running the open-source Community edition; if you also need Pro features, simply add a Pro license (+$2,999 / year, totaling $4,998 / year). Zero vendor lock-in — your instance keeps running in your cloud even if you cancel managed service.
-              </p>
-
-              <ul className="mt-5 grid grid-cols-1 gap-3 text-sm text-gray-700 md:grid-cols-2">
-                <li className="flex items-start gap-2.5">
-                  <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                  <span>Official turnkey setup: custom domain, automated SSL certificates, and centralized logs</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                  <span>Large-file transcoding and streaming playback performance tuning</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                  <span>Off-peak security updates and regular database backup verification</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                  <span>Managed ops support: email response within 1 business day for deployment, upgrades, and incidents</span>
-                </li>
-              </ul>
-            </div>
-
-            <div className="flex flex-col justify-between rounded-xl border border-gray-200 bg-white p-6 lg:w-80 lg:flex-shrink-0">
-              <div>
-                <div className="flex items-baseline whitespace-nowrap">
-                  <span className="text-3xl font-bold tracking-tight text-gray-900">$1,999</span>
-                  <span className="ml-1.5 text-sm font-medium text-gray-500">/ year</span>
-                  <span className="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-                    ~$167/month
-                  </span>
-                </div>
-                <div className="mt-2 flex items-baseline gap-2 text-sm text-gray-700">
-                  <span>Or monthly billing:</span>
-                  <strong className="font-semibold text-gray-900">$199 / month</strong>
-                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
-                    3-mo minimum
-                  </span>
-                </div>
-                <p className="mt-2 text-xs text-gray-500">
-                  14-day refund guarantee
-                </p>
-              </div>
-
-              <div className="mt-5">
-                <a
-                  href="mailto:dev@coneshare.com?subject=Managed%20BYOC%20Deployment%20Inquiry"
-                  className="inline-flex w-full items-center justify-center rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 transition"
-                >
-                  Request Managed Deployment
-                  <ArrowRight className="ml-1.5 h-4 w-4" />
-                </a>
-                <p className="mt-2 text-center text-xs text-gray-500">
-                  Fast onboarding via email and Slack
-                </p>
-              </div>
             </div>
           </div>
         </div>
@@ -515,11 +476,20 @@ export function PricingContent() {
                   <span className="ml-1.5 text-sm font-medium text-gray-500">/ hour</span>
                 </div>
                 <p className="mt-2 text-xs text-gray-500">
-                  Includes Email / Slack / Remote Session
+                  Pay-as-you-go • PayPal / Credit Card accepted
                 </p>
                 <p className="mt-1 text-xs text-gray-500">
-                  Ideal for self-hosted troubleshooting, performance tuning, and integration guidance
+                  Includes Email / Slack / live Remote Session
                 </p>
+                <div className="mt-4">
+                  <a
+                    href="mailto:dev@coneshare.com?subject=ConeShare%20Support%20Session%20Inquiry"
+                    className="inline-flex w-full items-center justify-center rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 transition"
+                  >
+                    Book Support Session
+                    <ArrowRight className="ml-1.5 h-4 w-4" />
+                  </a>
+                </div>
               </div>
             </div>
           </div>

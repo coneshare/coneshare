@@ -9,13 +9,21 @@ English | [中文](./README_zh.md)
 
 # Coneshare
 
-Coneshare is an open-source, self-hosted alternative to DocSend that works on top of your existing storage (Nextcloud, Google Drive, or Dropbox). Files stay on your own servers instead of moving to third-party cloud providers.
+Coneshare is an open-source, self-hosted alternative to DocSend and Virtual Data Room (VDR) software. It has no per-seat pricing, and files stay on your own servers.
 
-Use Coneshare to share documents and videos securely: apply dynamic watermarks, track viewer engagement page by page in real time, and trigger automations from viewer activity.
+You can import files from Nextcloud, Google Drive, or Dropbox, or store them directly on local disk or S3-compatible storage such as MinIO. Coneshare adds virtual datarooms, dynamic watermarks, NDA gates, page-by-page engagement tracking, video streaming, and a remote MCP server for ChatGPT, Claude, Gemini, and Cursor.
 
-[Quick start](https://github.com/coneshare/coneshare-compose) · [Docs](https://docs.coneshare.com/en/) · [Live demo](https://www.coneshare.com/demo) · [Roadmap](https://github.com/orgs/coneshare/projects/2/) · [Forum](https://github.com/orgs/coneshare/discussions)
+[Quick start](https://github.com/coneshare/coneshare-compose) · [Live demo](https://www.coneshare.com/demo) · [Docs](https://docs.coneshare.com/en/) · [Setup & Managed BYOC](https://www.coneshare.com/pricing) · [Forum](https://github.com/orgs/coneshare/discussions)
 
 If you find this project useful, please consider starring the repository.
+
+### Product preview
+
+| Branded Virtual Data Room (VDR) | Page-by-page engagement analytics |
+| :---: | :---: |
+| ![Branded Virtual Data Room](./portal/public/screenshots/feat-vdr-viewer.png) | ![Page-by-Page Analytics](./portal/public/screenshots/feat-analytics.png) |
+| **Dynamic watermarks & secure preview** | **Remote MCP (ChatGPT / Claude / Gemini / Cursor)** |
+| ![Dynamic Watermark Preview](./portal/public/screenshots/preview-pdf.png) | ![Remote MCP Server](./portal/public/screenshots/agent-poster.jpg) |
 
 <p align="center">
   <em>▶ <a href="https://assets.coneshare.com/coneshare-walkthrough-v1.mp4"><strong>Click here to watch the 2-minute product walkthrough video</strong></a></em>
@@ -23,11 +31,44 @@ If you find this project useful, please consider starring the repository.
 
 ---
 
+## Comparison
+
+| | Coneshare (MIT self-hosted) | DocSend (closed SaaS) | Papermark (cloud / free self-hosted) |
+| :--- | :--- | :--- | :--- |
+| **Virtual Data Rooms (VDR) in open source** | Included | Paid closed SaaS | Excluded from free self-hosted |
+| **Dynamic watermarks and NDA gates** | Included (MIT) | High-tier plans only | Commercial or paid plans for full VDR |
+| **Team seats and external viewers** | Unlimited | Per-seat (`$180/mo` + `$60/seat/mo`) | Per-seat on cloud |
+| **Data residency and storage** | Your own servers | Third-party cloud | Cloud is third-party; self-hosted VDR needs a commercial license |
+
+### How teams customize Coneshare
+
+Teams and system integrators have forked the MIT codebase for compliance and diligence workflows:
+
+- A solution partner in Saudi Arabia customized it for clinic document sharing and file collection under PDPL data residency rules.
+- A carbon-credit team adapted it into an investor due diligence portal combining protected documents with external operational telemetry.
+- Other forks adapt it for fundraising and M&A deal evaluation with NDA gates, watermarks, and page-level tracking.
+
+---
+
+## Deployment and managed hosting
+
+The MIT Community Edition is free with unlimited seats and viewers. If you would rather not set up servers, SSL, SMTP, and video transcoding yourself, we offer three paid services. Smaller orders use PayPal or credit card; annual and B2B orders can use corporate wire transfer and a commercial invoice.
+
+| Service | Price (USD) | Best for | What is included |
+| :--- | :--- | :--- | :--- |
+| **Done-For-You Setup** | `$299` one-time | Founders and small teams who want production setup fast | Deployment on your cloud or VPS in 1 to 2 business days, domain/SSL/SMTP, storage and watermark setup, one admin onboarding session, and a 14-day warranty |
+| **Managed BYOC** | `$199 / mo` (3-mo min `$597`) or `$1,999 / yr` | Advisory firms, law firms, and B2B teams | Setup, security updates, backup checks, and 1-business-day email support (runs in your own cloud account) |
+| **Support & Advisory** | `$150 / hour` | Self-hosting engineers and ISVs customizing Coneshare | Troubleshooting, performance tuning, architecture review, and upgrade guidance via email, Slack, or remote session |
+
+See full pricing and cost comparisons at [coneshare.com/pricing](https://www.coneshare.com/pricing), or email [dev@coneshare.com](mailto:dev@coneshare.com?subject=Coneshare%20Setup%20%2F%20Hosting%20Inquiry).
+
+---
+
 ## How it works
 
-Coneshare runs directly on top of your storage:
+Coneshare runs on your own infrastructure:
 
-- Files remain in your storage provider (Nextcloud, Google Drive, or Dropbox).
+- Import files from Nextcloud, Google Drive, or Dropbox, or upload directly to your own server storage (local disk or MinIO).
 - Coneshare adds:
   - Virtual datarooms and media previews
   - Access controls and link permissions
@@ -88,7 +129,7 @@ More storage connectors are in development.
 
 ## Deployment (self-hosted)
 
-For production deployments, use the [coneshare-compose repository](https://github.com/coneshare/coneshare-compose). It provides Docker Compose configurations with automated Let's Encrypt SSL, reverse proxy setups, and preconfigured containers.
+For production deployments, use the [coneshare-compose repository](https://github.com/coneshare/coneshare-compose).
 
 ---
 
