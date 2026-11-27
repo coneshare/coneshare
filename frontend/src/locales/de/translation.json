@@ -468,7 +468,9 @@
     "syncPartialFailure": "{{synced}} Datenraum/Datenräume synchronisiert, {{failed}} fehlgeschlagen.",
     "syncPartialDetail": "{{name}}: {{detail}}",
     "lastSyncedAt": "Zuletzt synchronisiert {{time}}",
-    "neverSynced": "Nie synchronisiert"
+    "neverSynced": "Nie synchronisiert",
+    "syncedBannerDirect_one": "Mit {{count}} Datenraum synchronisiert. Neue oder aktualisierte Dateien bleiben lokal, bis Sie auf Synchronisieren klicken.",
+    "syncedBannerDirect_other": "Mit {{count}} Datenräumen synchronisiert. Neue oder aktualisierte Dateien bleiben lokal, bis Sie auf Synchronisieren klicken."
   },
   "datarooms": {
     "title": "Datenräume",

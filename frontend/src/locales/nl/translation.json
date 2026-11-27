@@ -468,7 +468,9 @@
     "syncPartialFailure": "{{synced}} dataroom(s) gesynchroniseerd, maar {{failed}} mislukt.",
     "syncPartialDetail": "{{name}}: {{detail}}",
     "lastSyncedAt": "Laatst gesynchroniseerd {{time}}",
-    "neverSynced": "Nooit gesynchroniseerd"
+    "neverSynced": "Nooit gesynchroniseerd",
+    "syncedBannerDirect_one": "Gesynchroniseerd met {{count}} dataroom. Nieuwe of bijgewerkte bestanden blijven lokaal totdat u op Synchroniseren klikt.",
+    "syncedBannerDirect_other": "Gesynchroniseerd met {{count}} datarooms. Nieuwe of bijgewerkte bestanden blijven lokaal totdat u op Synchroniseren klikt."
   },
   "datarooms": {
     "title": "Datarooms",

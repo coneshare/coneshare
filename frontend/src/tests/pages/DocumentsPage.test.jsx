@@ -1655,5 +1655,143 @@ describe('DocumentsPage', () => {
       });
       expect(within(dialog).getByRole('alert')).toHaveTextContent('Series B Room');
     });
+
+    it('renders synced banner on synced folder, opens dialog, and refreshes currentFolder on partial failure', async () => {
+      const user = userEvent.setup();
+      api.getFolderContents
+        .mockResolvedValueOnce({
+          data: {
+            current_folder: {
+              id: 'f_sync',
+              name: 'Deal Room Docs',
+              ancestors: [],
+              synced_datarooms: [
+                {
+                  dataroom_id: 'dr_1',
+                  dataroom_name: 'Series A Room',
+                  dataroom_folder_id: 'df_1',
+                  dataroom_folder_path: '/Deal Room Docs',
+                  last_synced_at: null,
+                },
+                {
+                  dataroom_id: 'dr_1',
+                  dataroom_name: 'Series A Room',
+                  dataroom_folder_id: 'df_1b',
+                  dataroom_folder_path: '/Alt/Deal Room Docs',
+                  last_synced_at: null,
+                },
+                {
+                  dataroom_id: 'dr_2',
+                  dataroom_name: 'Series B Room',
+                  dataroom_folder_id: 'df_2',
+                  dataroom_folder_path: '/Deal Room Docs',
+                  last_synced_at: null,
+                },
+              ],
+              synced_ancestor: null,
+            },
+            sub_folders: [],
+            documents: [],
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            current_folder: {
+              id: 'f_sync',
+              name: 'Deal Room Docs',
+              ancestors: [],
+              synced_datarooms: [
+                {
+                  dataroom_id: 'dr_1',
+                  dataroom_name: 'Series A Room',
+                  dataroom_folder_id: 'df_1',
+                  dataroom_folder_path: '/Deal Room Docs',
+                  last_synced_at: new Date().toISOString(),
+                },
+                {
+                  dataroom_id: 'dr_1',
+                  dataroom_name: 'Series A Room',
+                  dataroom_folder_id: 'df_1b',
+                  dataroom_folder_path: '/Alt/Deal Room Docs',
+                  last_synced_at: new Date().toISOString(),
+                },
+                {
+                  dataroom_id: 'dr_2',
+                  dataroom_name: 'Series B Room',
+                  dataroom_folder_id: 'df_2',
+                  dataroom_folder_path: '/Deal Room Docs',
+                  last_synced_at: null,
+                },
+              ],
+              synced_ancestor: null,
+            },
+            sub_folders: [],
+            documents: [],
+          },
+        });
+
+      api.syncFolderToDatarooms.mockResolvedValue({
+        data: {
+          synced_count: 2,
+          failed_count: 1,
+          results: [
+            { dataroom_name: 'Series A Room', dataroom_folder_id: 'df_1', status: 'synced' },
+            { dataroom_name: 'Series A Room', dataroom_folder_id: 'df_1b', status: 'synced' },
+            {
+              dataroom_name: 'Series B Room',
+              dataroom_folder_id: 'df_2',
+              status: 'error',
+              detail: 'Syncing this folder would exceed the Dataroom storage limit of 25 MB.',
+            },
+          ],
+        },
+      });
+
+      renderComponent('/documents/folders/f_sync');
+
+      const banner = await screen.findByRole('status');
+      expect(banner).toHaveTextContent(
+        'Synced with 2 datarooms. New or updated files stay local until you click Sync.'
+      );
+
+      await user.click(within(banner).getByRole('button', { name: 'Sync Now' }));
+
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getAllByText('Never synced')).toHaveLength(3);
+      await user.click(within(dialog).getByRole('button', { name: 'Sync Now' }));
+
+      await waitFor(() => {
+        expect(within(dialog).getByRole('alert')).toHaveTextContent('Series B Room');
+      });
+      await waitFor(() => {
+        expect(within(dialog).getAllByText('Never synced')).toHaveLength(1);
+      });
+    });
+
+    it('does not render synced awareness banner at root or inside unrelated folders', async () => {
+      renderComponent('/documents');
+      await waitFor(() => {
+        expect(api.getRootFolderContents).toHaveBeenCalled();
+      });
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+      api.getFolderContents.mockResolvedValueOnce({
+        data: {
+          current_folder: {
+            id: 'f_plain',
+            name: 'Plain Folder',
+            ancestors: [],
+            synced_datarooms: [],
+          },
+          sub_folders: [],
+          documents: [],
+        },
+      });
+      renderComponent('/documents/folders/f_plain');
+      await waitFor(() => {
+        expect(api.getFolderContents).toHaveBeenCalledWith('f_plain');
+      });
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
   });
 });

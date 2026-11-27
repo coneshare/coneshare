@@ -529,7 +529,10 @@
     "syncPartialFailure": "{{synced}} dataroom(s) synchronisée(s), {{failed}} en échec.",
     "syncPartialDetail": "{{name}} : {{detail}}",
     "lastSyncedAt": "Dernière synchro {{time}}",
-    "neverSynced": "Jamais synchronisé"
+    "neverSynced": "Jamais synchronisé",
+    "syncedBannerDirect_one": "Synchronisé avec {{count}} dataroom. Les fichiers ajoutés ou modifiés restent locaux jusqu'à la synchronisation.",
+    "syncedBannerDirect_many": "Synchronisé avec {{count}} datarooms. Les fichiers ajoutés ou modifiés restent locaux jusqu'à la synchronisation.",
+    "syncedBannerDirect_other": "Synchronisé avec {{count}} datarooms. Les fichiers ajoutés ou modifiés restent locaux jusqu'à la synchronisation."
   },
   "datarooms": {
     "title": "Datarooms",

@@ -468,7 +468,9 @@
     "syncPartialFailure": "已成功同步 {{synced}} 个资料室，另有 {{failed}} 个失败。",
     "syncPartialDetail": "{{name}}：{{detail}}",
     "lastSyncedAt": "上次同步 {{time}}",
-    "neverSynced": "尚未同步"
+    "neverSynced": "尚未同步",
+    "syncedBannerDirect_one": "已关联 {{count}} 个资料室。新增或更新的文件在手动点击同步前仅保存在本地。",
+    "syncedBannerDirect_other": "已关联 {{count}} 个资料室。新增或更新的文件在手动点击同步前仅保存在本地。"
   },
   "datarooms": {
     "title": "资料室",

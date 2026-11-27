@@ -681,4 +681,18 @@ describe('Frontend i18n System', () => {
 
     await appI18n.changeLanguage('en');
   });
+
+  it('provides synced workspace banner translations across all 6 locales without missing keys', async () => {
+    const testI18n = createTestI18n();
+    const locales = ['en', 'zh-hans', 'de', 'fr', 'nl', 'ru'];
+
+    for (const lng of locales) {
+      await testI18n.changeLanguage(lng);
+      for (const count of [1, 2, 5]) {
+        const direct = testI18n.t('documents.syncedBannerDirect', { count });
+        expect(direct).not.toBe('documents.syncedBannerDirect');
+        expect(direct).toContain(String(count));
+      }
+    }
+  });
 });

@@ -5,7 +5,7 @@ import { useUrlSearch } from '../hooks/useUrlSearch';
 import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Star, Cloud, Search } from 'lucide-react';
+import { Star, Cloud, Search, FolderSync, RefreshCw } from 'lucide-react';
 import { DocumentsList } from "../components/documents/DocumentsList";
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
@@ -70,10 +70,20 @@ function DocumentsPage() {
   const [syncTarget, setSyncTarget] = useState(null);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
 
-  const folderToSync = useMemo(
-    () => (syncTarget ? folders.find((f) => f.id === syncTarget.id) || syncTarget : null),
-    [syncTarget, folders]
-  );
+  const folderToSync = useMemo(() => {
+    if (!syncTarget) return null;
+    if (currentFolder && currentFolder.id === syncTarget.id) {
+      return currentFolder;
+    }
+    return folders.find((f) => f.id === syncTarget.id) || syncTarget;
+  }, [syncTarget, folders, currentFolder]);
+
+  const directSyncedDataroomCount = useMemo(() => {
+    const refs = currentFolder?.synced_datarooms;
+    if (!Array.isArray(refs) || refs.length === 0) return 0;
+    const uniqueRoomIds = new Set(refs.map((ref) => ref.dataroom_id).filter(Boolean));
+    return uniqueRoomIds.size || refs.length;
+  }, [currentFolder]);
   const {
     searchInput: searchQuery,
     setSearchInput: setSearchQuery,
@@ -695,6 +705,32 @@ function DocumentsPage() {
           />
         </div>
       </div>
+
+      {currentFolder && directSyncedDataroomCount > 0 && (
+        <div
+          role="status"
+          className="mb-4 flex flex-col gap-2 rounded-lg border border-blue-200 bg-blue-50/80 px-3.5 py-2.5 text-xs text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-start gap-2.5 sm:items-center min-w-0">
+            <FolderSync className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400 mt-0.5 sm:mt-0" aria-hidden="true" />
+            <p className="leading-relaxed">
+              {t('documents.syncedBannerDirect', { count: directSyncedDataroomCount })}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setSyncTarget(currentFolder)}
+              className="h-7 gap-1.5 border-blue-200 bg-white text-xs text-blue-700 hover:bg-blue-100/70 hover:text-blue-800 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-200 dark:hover:bg-blue-900/60"
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{t('documents.syncNow')}</span>
+            </Button>
+          </div>
+        </div>
+      )}
 
       <DocumentsList
         allItems={allItems}

@@ -468,7 +468,9 @@
     "syncPartialFailure": "Synced {{synced}} dataroom(s), but {{failed}} failed.",
     "syncPartialDetail": "{{name}}: {{detail}}",
     "lastSyncedAt": "Last synced {{time}}",
-    "neverSynced": "Never synced"
+    "neverSynced": "Never synced",
+    "syncedBannerDirect_one": "Synced with {{count}} dataroom. New or updated files stay local until you click Sync.",
+    "syncedBannerDirect_other": "Synced with {{count}} datarooms. New or updated files stay local until you click Sync."
   },
   "datarooms": {
     "title": "Datarooms",
