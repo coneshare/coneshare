@@ -1,5 +1,7 @@
 from datetime import timedelta
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework import status
 
@@ -131,12 +133,23 @@ class TestFolderToDataroomSync:
         assert df_resp.data['source_folder_name'] == 'Legal'
         assert df_resp.data['source_folder_deleted'] is False
         assert df_resp.data['is_sync_root'] is True
+        assert df_resp.data['has_synced_ancestor'] is False
         assert df_resp.data['last_synced_at'] is not None
+        assert df_resp.data['documents'][0]['is_synced'] is True
+
+        manual_child = DataroomFolder.objects.create(
+            dataroom=dataroom,
+            name="Manual Child",
+            parent=synced_root,
+            created_by=user,
+            is_synced=False,
+        )
+        manual_child_resp = api_client.get(f'/api/v1/dataroom-folders/{manual_child.id}/')
+        assert manual_child_resp.status_code == status.HTTP_200_OK
+        assert manual_child_resp.data['is_synced'] is False
+        assert manual_child_resp.data['has_synced_ancestor'] is True
 
         # Check batch path resolution remains O(1) regardless of linked Dataroom count or depth
-        from django.db import connection
-        from django.test.utils import CaptureQueriesContext
-
         with CaptureQueriesContext(connection) as ctx_before:
             api_client.get('/api/v1/folders/')
 
@@ -248,6 +261,14 @@ class TestFolderToDataroomSync:
         assert not DataroomDocument.objects.filter(folder=synced_room1, document=doc_trash).exists()
         assert DataroomDocument.objects.filter(folder=synced_room1, document=direct_doc, is_direct_upload=True).exists()
         assert DataroomDocument.objects.filter(folder=synced_room1, document=manual_doc, is_synced=False).exists()
+        room1_df_resp = api_client.get(f'/api/v1/dataroom-folders/{synced_room1.id}/')
+        assert room1_df_resp.status_code == status.HTTP_200_OK
+        doc_sync_flags = {d['name']: d['is_synced'] for d in room1_df_resp.data['documents']}
+        assert doc_sync_flags == {
+            'Keep.pdf': True,
+            'DirectUpload.pdf': False,
+            'ManualLibDoc.pdf': False,
+        }
         assert not DataroomFolder.objects.filter(dataroom=dataroom, parent=synced_room1, name="OldSub").exists()
         room1_preserved_sub.refresh_from_db()
         assert room1_preserved_sub.is_synced is False

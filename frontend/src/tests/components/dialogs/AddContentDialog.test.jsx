@@ -192,8 +192,8 @@ describe('AddContentDialog', () => {
     await user.click(submitBtn);
 
     expect(mockOnConfirm).toHaveBeenCalledWith({
-      document_ids: ['doc_2'],
-      folder_ids: ['folder_1'],
+      documentIds: ['doc_2'],
+      folderIds: ['folder_1'],
     });
   });
 
@@ -295,8 +295,8 @@ describe('AddContentDialog', () => {
 
     await user.click(screen.getByRole('button', { name: 'Add 1 item' }));
     expect(mockOnConfirm).toHaveBeenCalledWith({
-      document_ids: ['doc_sub_1'],
-      folder_ids: [],
+      documentIds: ['doc_sub_1'],
+      folderIds: [],
     });
 
     // Navigating back to Home via breadcrumb also clears current selection
@@ -321,5 +321,50 @@ describe('AddContentDialog', () => {
     expect(await screen.findByText('Budget 2026.xlsx')).toBeInTheDocument();
     expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /add.*item/i })).toBeDisabled();
+  });
+
+  it('shows sync opt-in checkbox when folders are selected and submits sync_folders when enabled', async () => {
+    const user = userEvent.setup();
+    renderComponent();
+
+    await screen.findByText('spreadsheets');
+
+    // Hidden when no folders selected or only documents selected
+    expect(screen.queryByRole('checkbox', { name: /Keep selected folders synced with Documents/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: 'Q3 Report.pdf' }));
+    expect(screen.queryByRole('checkbox', { name: /Keep selected folders synced with Documents/i })).not.toBeInTheDocument();
+
+    // Appears when a folder is selected
+    await user.click(screen.getByRole('checkbox', { name: 'spreadsheets' }));
+    const syncCheckbox = screen.getByRole('checkbox', { name: /Keep selected folders synced with Documents/i });
+    expect(syncCheckbox).not.toBeChecked();
+
+    await user.click(syncCheckbox);
+    expect(syncCheckbox).toBeChecked();
+
+    await user.click(screen.getByRole('button', { name: 'Add 2 items' }));
+    expect(mockOnConfirm).toHaveBeenCalledWith({
+      documentIds: ['doc_1'],
+      folderIds: ['folder_1'],
+      syncFolders: true,
+    });
+  });
+
+  it('hides sync opt-in checkbox and omits syncFolders when canSyncFolders is false', async () => {
+    const user = userEvent.setup();
+    renderComponent({ canSyncFolders: false });
+
+    await screen.findByText('spreadsheets');
+    await user.click(screen.getByRole('checkbox', { name: 'spreadsheets' }));
+
+    expect(
+      screen.queryByRole('checkbox', { name: /Keep selected folders synced with Documents/i })
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Add 1 item' }));
+    expect(mockOnConfirm).toHaveBeenCalledWith({
+      documentIds: [],
+      folderIds: ['folder_1'],
+    });
   });
 });

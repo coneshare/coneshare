@@ -639,4 +639,46 @@ describe('Frontend i18n System', () => {
     // Restore default locale
     await appI18n.changeLanguage('en');
   });
+
+  it('translates folder sync quota and unlink error messages across locales', async () => {
+    await appI18n.changeLanguage('zh-hans');
+    expect(
+      getLocalizedErrorMessage({
+        response: {
+          data: {
+            detail: 'Uploading this file would exceed the Dataroom storage limit of 25 MB.',
+          },
+        },
+      })
+    ).toBe('上传此文件将超过该资料室的存储容量上限 (25 MB)。');
+    expect(
+      getLocalizedErrorMessage({
+        response: {
+          data: {
+            detail: 'Syncing this folder would exceed the Dataroom storage limit of 25 MB.',
+          },
+        },
+      })
+    ).toBe('同步此文件夹将超过该资料室的存储容量上限 (25 MB)。');
+    expect(
+      getLocalizedErrorMessage({
+        response: {
+          data: {
+            detail: 'Adding these items would exceed the Dataroom storage limit of 25 MB.',
+          },
+        },
+      })
+    ).toBe('添加所选项目将超过该资料室的存储容量上限 (25 MB)。');
+    expect(
+      getLocalizedErrorMessage({
+        response: {
+          data: {
+            detail: 'Only top-level synced folders can be unlinked. Unlink the parent synced folder instead.',
+          },
+        },
+      })
+    ).toBe('仅支持解除顶层同步文件夹的关联，请直接解除其父级同步文件夹。');
+
+    await appI18n.changeLanguage('en');
+  });
 });

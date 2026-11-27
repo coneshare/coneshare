@@ -69,6 +69,18 @@ const ERROR_STRING_MAPPINGS = {
     "errors.oauthInvalidRedirectUri",
   "This email address is not authorized to access this link.":
     "errors.emailNotAuthorized",
+  "Only top-level synced folders can be unlinked. Unlink the parent synced folder instead.":
+    "errors.unlinkTopLevelOnly",
+  "This folder is not synced with Documents.":
+    "errors.folderNotSynced",
+  "Only personal folders can be synced to datarooms.":
+    "errors.onlyPersonalFoldersSync",
+  "Cannot add a synced folder inside an already synced folder.":
+    "errors.cannotAddSyncedInsideSynced",
+  "Cannot move a subfolder out of a synced folder tree.":
+    "errors.cannotMoveSubfolderOutOfSynced",
+  "Cannot move a synced folder inside another synced folder.":
+    "errors.cannotMoveSyncedIntoSynced",
 };
 
 const DYNAMIC_ERROR_PATTERNS = [
@@ -77,8 +89,15 @@ const DYNAMIC_ERROR_PATTERNS = [
     handler: (match) => i18n.t('errors.storageQuotaExceeded', { quota: match[1] }),
   },
   {
-    pattern: /^Uploading this file would exceed the Dataroom storage limit of (\d+(?:\.\d+)?) MB\.$/,
-    handler: (match) => i18n.t('errors.dataroomStorageLimitExceeded', { limit: match[1] }),
+    pattern: /^(Uploading this file|Syncing this folder|Adding these items) would exceed the Dataroom storage limit of (\d+(?:\.\d+)?) MB\.$/,
+    handler: (match) => {
+      const keyMap = {
+        'Uploading this file': 'errors.dataroomStorageLimitExceeded',
+        'Syncing this folder': 'errors.dataroomSyncStorageLimitExceeded',
+        'Adding these items': 'errors.dataroomAddStorageLimitExceeded',
+      };
+      return i18n.t(keyMap[match[1]], { limit: match[2] });
+    },
   },
 ];
 

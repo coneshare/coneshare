@@ -1499,5 +1499,161 @@ describe('DocumentsPage', () => {
       expect(api.getDocuments).toHaveBeenCalledWith({ search: 'Budget' });
       expect(api.searchFolders).toHaveBeenCalledWith({ search: 'Budget' });
     });
+
+    it('opens SyncFolderToDataroomsDialog from synced folder menu and refreshes on sync', async () => {
+      const user = userEvent.setup();
+      api.getRootFolderContents.mockResolvedValue({
+        data: {
+          current_folder: null,
+          sub_folders: [
+            {
+              id: 'f_sync',
+              name: 'Deal Room Docs',
+              updated_at: '2026-11-24T10:00:00Z',
+              synced_datarooms: [
+                {
+                  dataroom_id: 'dr_1',
+                  dataroom_name: 'Series A Room',
+                  dataroom_folder_id: 'df_1',
+                  dataroom_folder_path: '/Deal Room Docs',
+                  last_synced_at: '2026-11-24T10:00:00Z',
+                },
+              ],
+            },
+          ],
+          documents: [],
+        },
+      });
+      api.syncFolderToDatarooms.mockResolvedValue({
+        data: { synced_count: 1, failed_count: 0, results: [] },
+      });
+
+      renderComponent();
+
+      const folderRow = await screen.findByText('Deal Room Docs').then(el => el.closest('[data-testid^="draggable-item-"]'));
+      await user.click(within(folderRow).getByRole('button', { name: /actions for/i }));
+
+      const syncItem = await screen.findByRole('menuitem', { name: /sync to datarooms/i });
+      await user.click(syncItem);
+
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('Series A Room')).toBeInTheDocument();
+      await user.click(within(dialog).getByRole('button', { name: 'Sync Now' }));
+
+      await waitFor(() => {
+        expect(api.syncFolderToDatarooms).toHaveBeenCalledWith('f_sync', {
+          dataroom_folder_ids: ['df_1'],
+        });
+      });
+      await waitFor(() => {
+        expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('preserves inline partial-failure alert across list refresh in SyncFolderToDataroomsDialog', async () => {
+      const user = userEvent.setup();
+      let resolveRefresh;
+      const refreshPromise = new Promise((resolve) => {
+        resolveRefresh = resolve;
+      });
+
+      api.getRootFolderContents
+        .mockResolvedValueOnce({
+          data: {
+            current_folder: null,
+            sub_folders: [
+              {
+                id: 'f_sync',
+                name: 'Deal Room Docs',
+                updated_at: '2026-11-24T10:00:00Z',
+                synced_datarooms: [
+                  {
+                    dataroom_id: 'dr_1',
+                    dataroom_name: 'Series A Room',
+                    dataroom_folder_id: 'df_1',
+                    dataroom_folder_path: '/Deal Room Docs',
+                    last_synced_at: null,
+                  },
+                  {
+                    dataroom_id: 'dr_2',
+                    dataroom_name: 'Series B Room',
+                    dataroom_folder_id: 'df_2',
+                    dataroom_folder_path: '/Deal Room Docs',
+                    last_synced_at: null,
+                  },
+                ],
+              },
+            ],
+            documents: [],
+          },
+        })
+        .mockReturnValueOnce(refreshPromise);
+
+      api.syncFolderToDatarooms.mockResolvedValue({
+        data: {
+          synced_count: 1,
+          failed_count: 1,
+          results: [
+            { dataroom_name: 'Series A Room', dataroom_folder_id: 'df_1', status: 'ok' },
+            {
+              dataroom_name: 'Series B Room',
+              dataroom_folder_id: 'df_2',
+              status: 'error',
+              detail: 'Dataroom storage quota exceeded.',
+            },
+          ],
+        },
+      });
+
+      renderComponent();
+
+      const folderRow = await screen.findByText('Deal Room Docs').then((el) => el.closest('[data-testid^="draggable-item-"]'));
+      await user.click(within(folderRow).getByRole('button', { name: /actions for/i }));
+      await user.click(await screen.findByRole('menuitem', { name: /sync to datarooms/i }));
+
+      const dialog = await screen.findByRole('dialog');
+      await user.click(within(dialog).getByRole('button', { name: 'Sync Now' }));
+
+      // Mid-flight while refresh fetchData() has cleared folders state: dialog & alert stay visible
+      const alertBeforeResolve = await within(dialog).findByRole('alert');
+      expect(alertBeforeResolve).toHaveTextContent('Series B Room');
+      expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
+
+      // Resolve refresh with updated last_synced_at: alert remains intact and timestamps update in place
+      resolveRefresh({
+        data: {
+          current_folder: null,
+          sub_folders: [
+            {
+              id: 'f_sync',
+              name: 'Deal Room Docs',
+              updated_at: '2026-11-24T10:00:00Z',
+              synced_datarooms: [
+                {
+                  dataroom_id: 'dr_1',
+                  dataroom_name: 'Series A Room',
+                  dataroom_folder_id: 'df_1',
+                  dataroom_folder_path: '/Deal Room Docs',
+                  last_synced_at: new Date().toISOString(),
+                },
+                {
+                  dataroom_id: 'dr_2',
+                  dataroom_name: 'Series B Room',
+                  dataroom_folder_id: 'df_2',
+                  dataroom_folder_path: '/Deal Room Docs',
+                  last_synced_at: null,
+                },
+              ],
+            },
+          ],
+          documents: [],
+        },
+      });
+
+      await waitFor(() => {
+        expect(within(dialog).getAllByText('Never synced')).toHaveLength(1);
+      });
+      expect(within(dialog).getByRole('alert')).toHaveTextContent('Series B Room');
+    });
   });
 });

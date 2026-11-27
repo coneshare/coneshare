@@ -91,8 +91,9 @@ def _dataroom_folder_map(dataroom):
             'id': row['id'],
             'name': row['name'],
             'parent_id': row['parent_id'],
+            'is_synced': row['is_synced'],
         }
-        for row in dataroom.folders.values('id', 'name', 'parent_id')
+        for row in dataroom.folders.values('id', 'name', 'parent_id', 'is_synced')
     }
 
 
@@ -1323,8 +1324,14 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
             dataroom_view_count=Count('dataroomvisit', distinct=True)
         ).order_by('created_at', 'id')
 
-        data = self.get_serializer(instance).data
-        sub_folder_data = DataroomFolderSerializer(sub_folders, many=True).data
+        serializer_context = {
+            **self.get_serializer_context(),
+            'dataroom_folder_parent_map': _dataroom_folder_map(instance.dataroom),
+        }
+        data = DataroomFolderSerializer(instance, context=serializer_context).data
+        sub_folder_data = DataroomFolderSerializer(
+            sub_folders, many=True, context=serializer_context
+        ).data
         document_data = DataroomDocumentSerializer(documents, many=True).data
         data['sub_folders'] = sub_folder_data
         data['documents'] = document_data

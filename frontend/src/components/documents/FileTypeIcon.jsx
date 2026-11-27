@@ -1,4 +1,4 @@
-import { FileCode, FileIcon, FileImageIcon, FileQuestion, FileSpreadsheet, FileTextIcon, FolderIcon, FileVideo } from "lucide-react";
+import { FileCode, FileIcon, FileImageIcon, FileQuestion, FileSpreadsheet, FileTextIcon, FolderIcon, FolderSync, FileVideo } from "lucide-react";
 
 function normalizeType(type) {
   if (!type) return "unknown";
@@ -41,7 +41,7 @@ function normalizeType(type) {
   return "unknown";
 }
 
-export function FileTypeIcon({ type, className = "h-5 w-5", palette = "default" }) {
+export function FileTypeIcon({ type, className = "h-5 w-5", palette = "default", isSynced = false }) {
   const normalized = normalizeType(type);
 
   const paletteVars = {
@@ -81,7 +81,14 @@ export function FileTypeIcon({ type, className = "h-5 w-5", palette = "default" 
   const style = { color: colors[normalized] || colors.unknown };
 
   if (normalized === "folder") {
-    return <FolderIcon data-testid="file-type-icon-folder" className={className} style={style} />;
+    const FolderGraphic = isSynced ? FolderSync : FolderIcon;
+    return (
+      <FolderGraphic
+        data-testid={isSynced ? "file-type-icon-folder-sync" : "file-type-icon-folder"}
+        className={className}
+        style={style}
+      />
+    );
   }
   if (normalized === "pdf") {
     return <FileTextIcon data-testid="file-type-icon-pdf" className={className} style={style} />;

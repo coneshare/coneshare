@@ -8,7 +8,7 @@ import { ShareIcon, Star, ArrowLeft, ChevronDown, FolderUp, Plus, Loader2, Alert
 import { toast } from 'sonner';
 import { formatBytes } from '../lib/formatters';
 import { isDataroomOwner, isDataroomCollaborator } from '../utils/formatters';
-import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, getDataroomStats, removeContentFromDataroom, updateDataroomFolder, updateDataroomDocument, updateDataroomBranding, reorderDataroomItems, deleteDataroom, ensureDataroomFolderPaths, uploadDataroomDocument, upgradeDataroomStorage, getDataroomBannerImages, searchDataroomContent } from '../services/api';
+import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, getDataroomStats, removeContentFromDataroom, updateDataroomFolder, unlinkDataroomFolder, updateDataroomDocument, updateDataroomBranding, reorderDataroomItems, deleteDataroom, ensureDataroomFolderPaths, uploadDataroomDocument, upgradeDataroomStorage, getDataroomBannerImages, searchDataroomContent } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { useUpload } from '../contexts/UploadProvider';
 import { useUser } from '../contexts/UserProvider';
@@ -110,6 +110,7 @@ export function DataroomPage() {
   const [isRemoveContentDialogOpen, setIsRemoveContentDialogOpen] = useState(false);
   const [itemToRename, setItemToRename] = useState(null);
   const [itemToRemove, setItemToRemove] = useState(null);
+  const [folderToUnlink, setFolderToUnlink] = useState(null);
   const [isTransferOwnershipOpen, setIsTransferOwnershipOpen] = useState(false);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
   const [brandingForm, setBrandingForm] = useState({
@@ -585,19 +586,19 @@ export function DataroomPage() {
     return () => URL.revokeObjectURL(objUrl);
   }, [brandLogoOverrideFile]);
 
-  const handleAddContent = async ({ document_ids, folder_ids }) => {
+  const handleAddContent = async ({ documentIds, folderIds, syncFolders }) => {
     try {
       await addContentToDataroom(dataroomId, {
-        document_ids,
-        folder_ids,
+        document_ids: documentIds,
+        folder_ids: folderIds,
         destination_folder_id: currentFolderId,
+        ...(syncFolders ? { sync_folders: true } : {}),
       });
-      toast.success('Content added to dataroom successfully.');
+      toast.success(t('datarooms.addContentSuccess'));
+      setIsAddContentOpen(false);
       fetchContent(); // Refresh
     } catch (error) {
       // Toast is handled by api interceptor
-    } finally {
-      setIsAddContentOpen(false);
     }
   };
 
@@ -737,6 +738,19 @@ export function DataroomPage() {
       toast.success(t('datarooms.removeItemSuccess', { name: itemToRemove.name }));
       setItemToRemove(null);
       fetchContent();
+    } catch (error) {
+      // Error toast handled by interceptor
+    }
+  };
+
+  const handleConfirmUnlinkFolder = async () => {
+    if (!folderToUnlink) return;
+
+    try {
+      await unlinkDataroomFolder(folderToUnlink.id);
+      toast.success(t('datarooms.unlinkSuccess', { name: folderToUnlink.name }));
+      setFolderToUnlink(null);
+      fetchContentRef.current?.();
     } catch (error) {
       // Error toast handled by interceptor
     }
@@ -1285,6 +1299,7 @@ export function DataroomPage() {
               sortConfig={sortConfig}
               onRename={handleRenameItem}
               onDelete={handleRemoveItem}
+              onUnlink={(folder) => setFolderToUnlink(folder)}
               deleteLabel={t('common.remove')}
               onToggleStar={handleToggleStar}
               viewsTooltip={t('datarooms.viewsTooltip')}
@@ -2021,6 +2036,7 @@ export function DataroomPage() {
         isOpen={isAddContentOpen}
         onOpenChange={setIsAddContentOpen}
         onConfirm={handleAddContent}
+        canSyncFolders={!(currentDataroomFolder?.is_synced || currentDataroomFolder?.has_synced_ancestor)}
       />
       <AddFolderDialog
         isOpen={isAddFolderOpen}
@@ -2067,6 +2083,15 @@ export function DataroomPage() {
         title={t('datarooms.removeItemTitle', { name: itemToRemove?.name })}
         description={t('datarooms.removeItemDescription')}
         confirmText={t('datarooms.remove')}
+      />
+      <ConfirmationDialog
+        isOpen={!!folderToUnlink}
+        onOpenChange={(isOpen) => !isOpen && setFolderToUnlink(null)}
+        onConfirm={handleConfirmUnlinkFolder}
+        title={t('datarooms.unlinkFolderTitle', { name: folderToUnlink?.name })}
+        description={t('datarooms.unlinkFolderDescription')}
+        confirmText={t('datarooms.unlinkConfirm')}
+        variant="default"
       />
       <ConfirmationDialog
         isOpen={isUpgradeStorageDialogOpen}

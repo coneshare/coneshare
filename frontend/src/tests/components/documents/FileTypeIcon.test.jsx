@@ -4,8 +4,11 @@ import { FileTypeIcon, getDocumentBadgeStyle } from "../../../components/documen
 
 describe("FileTypeIcon", () => {
   it("renders folder icon for folder type", () => {
-    render(<FileTypeIcon type="folder" />);
+    const { rerender } = render(<FileTypeIcon type="folder" />);
     expect(screen.getByTestId("file-type-icon-folder")).toBeInTheDocument();
+
+    rerender(<FileTypeIcon type="folder" isSynced />);
+    expect(screen.getByTestId("file-type-icon-folder-sync")).toBeInTheDocument();
   });
 
   it("renders pdf icon for pdf type", () => {

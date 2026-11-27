@@ -1,5 +1,5 @@
 import { formatRelativeTime, getAvatarInitial } from "../../utils/formatters";
-import { Star } from "lucide-react";
+import { Star, RefreshCw, AlertTriangle } from "lucide-react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -26,6 +26,8 @@ export function DraggableItem({
   onDelete,
   onShare,
   onRequestFiles,
+  onSyncDatarooms,
+  onUnlink,
   onToggleStar,
   onDownload,
   onCopy,
@@ -104,6 +106,16 @@ export function DraggableItem({
     };
   };
 
+  const hasSyncedDatarooms = type === "folder" && Array.isArray(item.synced_datarooms) && item.synced_datarooms.length > 0;
+  const isSyncRootFolder = type === "folder" && Boolean(item.is_synced) && Boolean(item.is_sync_root);
+  const isSyncedSourceBroken = Boolean(item.source_folder_deleted) || !item.source_folder;
+  const showFolderSyncBadge =
+    type === "folder" && Boolean(item.is_synced) && (Boolean(item.is_sync_root) || isSyncedSourceBroken);
+  const showManagedSyncIndicator =
+    (type === "document" && Boolean(item.is_synced)) ||
+    (type === "folder" && Boolean(item.is_synced) && !item.is_sync_root && !isSyncedSourceBroken);
+  const isSyncedFolder = isSyncRootFolder || hasSyncedDatarooms;
+
   return (
     <div
       onClick={handleRowClick}
@@ -134,16 +146,106 @@ export function DraggableItem({
           type={type === "folder" ? "folder" : item.document_type || "document"}
           className="h-5 w-5 shrink-0"
           palette={themed ? "dataroom" : "default"}
+          isSynced={isSyncedFolder}
         />
         <div className="min-w-0">
-          <button
-            type="button"
-            className="block max-w-full truncate font-medium text-left hover:underline"
-            style={themed ? { color: "var(--dataroom-primary)" } : undefined}
-            onClick={handleNameClick}
-          >
-            {item.name}
-          </button>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <button
+              type="button"
+              className="block max-w-full truncate font-medium text-left hover:underline"
+              style={themed ? { color: "var(--dataroom-primary)" } : undefined}
+              onClick={handleNameClick}
+            >
+              {item.name}
+            </button>
+            {hasSyncedDatarooms && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSyncDatarooms?.(item);
+                    }}
+                    aria-label={t('documents.syncedWithDataroomsCount', { count: item.synced_datarooms.length })}
+                    className="inline-flex shrink-0 items-center rounded-full border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-800/60 dark:bg-blue-950/50 dark:text-blue-300 dark:hover:bg-blue-900/60"
+                  >
+                    <span>{item.synced_datarooms.length}</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="text-xs space-y-1 max-w-xs">
+                    <p className="font-semibold">{t('documents.syncedDataroomsTooltip')}</p>
+                    <ul className="space-y-0.5">
+                      {item.synced_datarooms.map((ref) => (
+                        <li key={ref.dataroom_folder_id} className="truncate">
+                          • {ref.dataroom_name} ({ref.dataroom_folder_path})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {showFolderSyncBadge && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge
+                    tabIndex={0}
+                    variant="secondary"
+                    className={cn(
+                      "inline-flex shrink-0 cursor-default items-center gap-1 px-1.5 py-0.5 text-[11px] font-medium focus:outline-none focus-visible:ring-2",
+                      isSyncedSourceBroken
+                        ? "border-amber-200 bg-amber-50 text-amber-700 focus-visible:ring-amber-500 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-300"
+                        : "border-emerald-200 bg-emerald-50 text-emerald-700 focus-visible:ring-emerald-500 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300"
+                    )}
+                  >
+                    {isSyncedSourceBroken && (
+                      <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                    )}
+                    <span>
+                      {item.source_folder_deleted
+                        ? t('datarooms.syncedSourceDeletedBadge')
+                        : t('datarooms.syncedBadge')}
+                    </span>
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="text-xs space-y-0.5">
+                    <p>
+                      {item.source_folder_deleted && item.source_folder_name
+                        ? t('datarooms.syncedSourceInTrash', { name: item.source_folder_name })
+                        : item.source_folder_name
+                          ? t('datarooms.syncedFromFolder', { name: item.source_folder_name })
+                          : t('datarooms.syncedSourceUnavailable')}
+                    </p>
+                    {item.last_synced_at && (
+                      <p className="text-muted-foreground">
+                        {t('documents.lastSyncedAt', { time: formatRelativeTime(item.last_synced_at) })}
+                      </p>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {showManagedSyncIndicator && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    tabIndex={0}
+                    role="img"
+                    aria-label={t('datarooms.syncedDocumentTooltip')}
+                    className="inline-flex shrink-0 cursor-default items-center rounded-sm text-emerald-600/80 dark:text-emerald-400/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  >
+                    <RefreshCw className="h-3 w-3" aria-hidden="true" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">{t('datarooms.syncedDocumentTooltip')}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
           {item.location ? (
             <p className="truncate text-xs text-muted-foreground" title={item.location}>
               {item.location}
@@ -237,6 +339,8 @@ export function DraggableItem({
               onDelete={onDelete}
               onShare={onShare}
               onRequestFiles={onRequestFiles}
+              onSyncDatarooms={onSyncDatarooms}
+              onUnlink={onUnlink}
               onDownload={onDownload}
               onCopy={onCopy}
               deleteLabel={deleteLabel}

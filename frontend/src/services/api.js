@@ -132,7 +132,7 @@ api.interceptors.response.use(
           window.location.href = '/login';
         } else {
           const errorMessage = getLocalizedErrorMessage(error);
-          if (!isViewDataProtectionPrompt && errorMessage) {
+          if (!isViewDataProtectionPrompt && !error.config?.skipErrorToast && errorMessage) {
             toast.error(errorMessage);
           }
         }
@@ -159,7 +159,7 @@ api.interceptors.response.use(
               window.location.href = '/login';
             } else {
               const errorMessage = getLocalizedErrorMessage(error);
-              if (!isViewDataProtectionPrompt && errorMessage) {
+              if (!isViewDataProtectionPrompt && !error.config?.skipErrorToast && errorMessage) {
                 toast.error(errorMessage);
               }
             }
@@ -174,8 +174,8 @@ api.interceptors.response.use(
     // For other errors, show a toast, preferring translated/mapped error messages.
     const errorMessage = getLocalizedErrorMessage(error);
 
-    // Avoid showing an error toast for sequential gate prompts on the viewer page.
-    if (!isViewDataProtectionPrompt && errorMessage) {
+    // Avoid showing an error toast for sequential gate prompts on the viewer page or explicit opt-outs.
+    if (!isViewDataProtectionPrompt && !error.config?.skipErrorToast && errorMessage) {
       toast.error(errorMessage);
     }
 
@@ -259,6 +259,9 @@ export const ensureFolderPaths = (paths, parentPath = null) =>
 export const getDocuments = (params = {}) => api.get('/documents/', { params });
 
 export const searchFolders = (params = {}) => api.get('/folders/search/', { params });
+
+export const syncFolderToDatarooms = (folderId, data = {}) =>
+  api.post(`/folders/${folderId}/sync-datarooms/`, data, { skipErrorToast: true });
 
 export const deleteDocument = (id) => api.delete(`/documents/${id}/`);
 
@@ -626,6 +629,7 @@ export const createDataroomFolder = (data) => api.post('/dataroom-folders/', dat
 export const renameDataroomFolder = (id, name) => api.patch(`/dataroom-folders/${id}/`, { name });
 export const renameDataroomDocument = (id, name) => api.patch(`/dataroom-documents/${id}/`, { name });
 export const updateDataroomFolder = (id, data) => api.patch(`/dataroom-folders/${id}/`, data);
+export const unlinkDataroomFolder = (id) => api.post(`/dataroom-folders/${id}/unlink/`);
 export const updateDataroomDocument = (id, data) => api.patch(`/dataroom-documents/${id}/`, data);
 export const updateDataroom = (id, data) => api.patch(`/datarooms/${id}/`, data);
 export const getDataroomCollaborators = (dataroomId) => api.get(`/datarooms/${dataroomId}/collaborators/`);
