@@ -232,8 +232,8 @@ class DataroomViewSet(viewsets.ModelViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         data = serializer.validated_data
-        doc_ids = data.get('document_ids', [])
-        folder_ids = data.get('folder_ids', [])
+        doc_ids = list(dict.fromkeys(data.get('document_ids', [])))
+        folder_ids = list(dict.fromkeys(data.get('folder_ids', [])))
         dest_folder_id = data.get('destination_folder_id')
         sync_folders = data.get('sync_folders', False)
 
@@ -251,8 +251,8 @@ class DataroomViewSet(viewsets.ModelViewSet):
                     )
 
                 # Add individual documents.
-                docs_to_add = Document.objects.active().filter(id__in=doc_ids, created_by=request.user)
-                if docs_to_add.count() != len(doc_ids):
+                docs_to_add = list(Document.objects.active().filter(id__in=doc_ids, created_by=request.user))
+                if len(docs_to_add) != len(doc_ids):
                     raise PermissionDenied("You do not have permission to add one or more of the selected documents.")
 
                 # Add folders and their contents recursively.
@@ -260,31 +260,42 @@ class DataroomViewSet(viewsets.ModelViewSet):
                 if len(folders_to_add) != len(folder_ids):
                     raise PermissionDenied("You do not have permission to add one or more of the selected folders.")
 
-                # Check Dataroom storage quota cap under row lock
+                # Skip documents already present in (locked_dataroom, destination_folder) idempotently.
+                existing_doc_ids_in_scope = set(
+                    DataroomDocument.objects.filter(
+                        dataroom=locked_dataroom,
+                        folder=destination_folder,
+                        document_id__in=[doc.id for doc in docs_to_add],
+                    ).values_list('document_id', flat=True)
+                )
+                new_docs_to_add = [doc for doc in docs_to_add if doc.id not in existing_doc_ids_in_scope]
+
+                # Check Dataroom storage quota cap under row lock.
                 if locked_dataroom.storage_quota_mb and locked_dataroom.storage_quota_mb > 0:
-                    all_new_doc_ids = set(docs_to_add.values_list('id', flat=True))
+                    all_new_doc_ids = {doc.id for doc in new_docs_to_add}
                     for folder in folders_to_add:
                         all_new_doc_ids |= collect_subtree_active_document_ids(folder, request.user)
-                    check_dataroom_quota_for_documents(
-                        locked_dataroom,
-                        all_new_doc_ids,
-                        action_label="Adding these items",
-                    )
+                    if all_new_doc_ids:
+                        check_dataroom_quota_for_documents(
+                            locked_dataroom,
+                            all_new_doc_ids,
+                            action_label="Adding these items",
+                        )
 
-                for doc in docs_to_add:
+                for doc in new_docs_to_add:
                     unique_name = get_unique_dataroom_document_name(
-                        dataroom, destination_folder, doc.name
+                        locked_dataroom, destination_folder, doc.name
                     )
                     created_doc = DataroomDocument.objects.create(
-                        dataroom=dataroom,
+                        dataroom=locked_dataroom,
                         document=doc,
                         folder=destination_folder,
                         name=unique_name,
                         is_direct_upload=False,
                     )
-                    if scope_has_item_order_rows(dataroom, destination_folder):
+                    if scope_has_item_order_rows(locked_dataroom, destination_folder):
                         append_item_order(
-                            dataroom=dataroom,
+                            dataroom=locked_dataroom,
                             parent_folder=destination_folder,
                             item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
                             dataroom_document=created_doc,
@@ -292,17 +303,18 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
                 for folder in folders_to_add:
                     replicate_folder_to_dataroom(
-                        dataroom=dataroom,
+                        dataroom=locked_dataroom,
                         source_folder=folder,
                         parent_dataroom_folder=destination_folder,
                         requesting_user=request.user,
                         sync_enabled=sync_folders,
                     )
 
-                if destination_folder:
-                    touch_dataroom_folder_ancestors(destination_folder)
-                else:
-                    touch_dataroom(dataroom)
+                if new_docs_to_add or folders_to_add:
+                    if destination_folder:
+                        touch_dataroom_folder_ancestors(destination_folder)
+                    else:
+                        touch_dataroom(locked_dataroom)
 
             return Response({"detail": "Content added successfully."}, status=status.HTTP_200_OK)
         except QuotaExceededError as e:

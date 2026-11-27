@@ -23,6 +23,7 @@ import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
 import { MoveItemsDialog } from '../components/dialogs/MoveItemsDialog';
 import { CloudImportDialog } from '../components/dialogs/CloudImportDialog';
+import { AddToDataroomsDialog } from '../components/dialogs/AddToDataroomsDialog';
 import { SyncFolderToDataroomsDialog } from '../components/dialogs/SyncFolderToDataroomsDialog';
 import { FileRequestSheet } from '../components/filerequests/FileRequestSheet';
 import { TooltipProvider } from '../components/ui/Tooltip';
@@ -68,6 +69,7 @@ function DocumentsPage() {
   const [isFileRequestSheetOpen, setIsFileRequestSheetOpen] = useState(false);
   const [selectedFolderForRequest, setSelectedFolderForRequest] = useState(null);
   const [syncTarget, setSyncTarget] = useState(null);
+  const [addToDataroomsTarget, setAddToDataroomsTarget] = useState(null);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
 
   const folderToSync = useMemo(() => {
@@ -77,6 +79,16 @@ function DocumentsPage() {
     }
     return folders.find((f) => f.id === syncTarget.id) || syncTarget;
   }, [syncTarget, folders, currentFolder]);
+
+  const resolvedAddToDataroomsItems = useMemo(() => {
+    if (!addToDataroomsTarget) return { folders: [], documents: [] };
+    const liveFolderMap = new Map(folders.map((f) => [f.id, f]));
+    const liveDocumentMap = new Map(documents.map((d) => [d.id, d]));
+    return {
+      folders: addToDataroomsTarget.folders.map((f) => liveFolderMap.get(f.id) || f),
+      documents: addToDataroomsTarget.documents.map((d) => liveDocumentMap.get(d.id) || d),
+    };
+  }, [addToDataroomsTarget, folders, documents]);
 
   const directSyncedDataroomCount = useMemo(() => {
     const refs = currentFolder?.synced_datarooms;
@@ -598,6 +610,17 @@ function DocumentsPage() {
           refreshUser();
         }}
       />
+      <AddToDataroomsDialog
+        isOpen={Boolean(addToDataroomsTarget)}
+        onOpenChange={(open) => !open && setAddToDataroomsTarget(null)}
+        items={resolvedAddToDataroomsItems}
+        onSuccess={({ allSucceeded }) => {
+          fetchDataRef.current?.();
+          if (allSucceeded && addToDataroomsTarget?.source === 'bulk') {
+            handleClearSelection();
+          }
+        }}
+      />
       <section className="mb-4 flex items-center justify-end space-x-2 sm:space-x-0">
         <div className="relative flex items-center gap-x-2">
           <Button
@@ -677,6 +700,20 @@ function DocumentsPage() {
               selectedDocumentsCount={selection.documents.length}
               selectedFoldersCount={selection.folders.length}
               onClearSelection={handleClearSelection}
+              addToDataroomsDisabled={loading}
+              onAddToDatarooms={() => {
+                if (loading) return;
+                const selectedFolderSet = new Set(selection.folders);
+                const selectedDocumentSet = new Set(selection.documents);
+                const selectedFolders = folders.filter((f) => selectedFolderSet.has(f.id));
+                const selectedDocuments = documents.filter((d) => selectedDocumentSet.has(d.id));
+                if (selectedFolders.length === 0 && selectedDocuments.length === 0) return;
+                setAddToDataroomsTarget({
+                  folders: selectedFolders,
+                  documents: selectedDocuments,
+                  source: 'bulk',
+                });
+              }}
               onDelete={() => setIsBulkDeleteConfirmOpen(true)}
               onMove={() => setIsMoveItemsOpen(true)}
             />
@@ -764,6 +801,13 @@ function DocumentsPage() {
         onCopy={handleCopy}
         onShare={handleShare}
         onRequestFiles={handleRequestFiles}
+        onAddToDatarooms={(item) =>
+          setAddToDataroomsTarget({
+            folders: item.type === 'folder' ? [item] : [],
+            documents: item.type === 'document' ? [item] : [],
+            source: 'row',
+          })
+        }
         onSyncDatarooms={(folder) => setSyncTarget(folder)}
         viewsTooltip={t('documents.viewsTooltip')}
       />

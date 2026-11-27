@@ -889,11 +889,7 @@ def replicate_folder_to_dataroom(
     Replicates a personal workspace folder and its active contents into a Dataroom.
     """
     now = now or timezone.now()
-    folder_name = (
-        get_unique_dataroom_folder_name(dataroom, parent_dataroom_folder, source_folder.name)
-        if sync_enabled
-        else source_folder.name
-    )
+    folder_name = get_unique_dataroom_folder_name(dataroom, parent_dataroom_folder, source_folder.name)
     new_dataroom_folder = DataroomFolder.objects.create(
         dataroom=dataroom,
         name=folder_name,
