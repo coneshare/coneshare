@@ -44,6 +44,8 @@ export function DocumentsList({
   onDelete,
   onShare,
   onRequestFiles,
+  onSyncDatarooms,
+  onUnlink,
   onDownload,
   onCopy,
   themed = false,
@@ -292,6 +294,8 @@ export function DocumentsList({
                   onDelete={onDelete || internalHandleDelete}
                   onShare={onShare}
                   onRequestFiles={onRequestFiles}
+                  onSyncDatarooms={onSyncDatarooms}
+                  onUnlink={onUnlink}
                   onToggleStar={onToggleStar}
                   isReadOnly={isReadOnly}
                   showActions={showActions}

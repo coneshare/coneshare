@@ -77,7 +77,11 @@ function PermissionRow({ item, level, settings, onSettingChange, onBulkSettingCh
           ) : (
             <div className="w-6 flex-shrink-0" /> // Spacer to align with folder icons
           )}
-          <FileTypeIcon type={isFolder ? 'folder' : item.document_type || 'document'} className="h-4 w-4 flex-shrink-0" />
+          <FileTypeIcon
+            type={isFolder ? 'folder' : item.document_type || 'document'}
+            className="h-4 w-4 flex-shrink-0"
+            isSynced={isFolder && Boolean(item.is_sync_root)}
+          />
           <span className="truncate">{item.name}</span>
         </div>
         <div className="flex justify-center">

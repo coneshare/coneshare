@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Edit, MoreHorizontal, Share2, Trash2, UploadCloud, Download, Copy } from 'lucide-react';
+import { Edit, MoreHorizontal, Share2, Trash2, UploadCloud, Download, Copy, RefreshCw, Unlink } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 export function ActionsDropdown({
@@ -10,6 +10,8 @@ export function ActionsDropdown({
   onDelete,
   onShare,
   onRequestFiles,
+  onSyncDatarooms,
+  onUnlink,
   onOpenChange,
   onDownload,
   onCopy,
@@ -102,6 +104,32 @@ export function ActionsDropdown({
             >
               <UploadCloud className="h-4 w-4" aria-hidden="true" />
               <span>{t('documents.requestFiles')}</span>
+            </DropdownMenu.Item>
+          )}
+
+          {type === 'folder' && onSyncDatarooms && Array.isArray(item.synced_datarooms) && item.synced_datarooms.length > 0 && (
+            <DropdownMenu.Item
+              onSelect={(e) => {
+                e.stopPropagation();
+                onSyncDatarooms(item);
+              }}
+              className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
+            >
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              <span>{t('documents.syncToDatarooms')}</span>
+            </DropdownMenu.Item>
+          )}
+
+          {type === 'folder' && onUnlink && item.is_sync_root && (
+            <DropdownMenu.Item
+              onSelect={(e) => {
+                e.stopPropagation();
+                onUnlink(item);
+              }}
+              className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
+            >
+              <Unlink className="h-4 w-4" aria-hidden="true" />
+              <span>{t('datarooms.unlinkFromDocuments')}</span>
             </DropdownMenu.Item>
           )}
 

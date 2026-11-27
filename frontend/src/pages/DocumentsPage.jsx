@@ -23,6 +23,7 @@ import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
 import { MoveItemsDialog } from '../components/dialogs/MoveItemsDialog';
 import { CloudImportDialog } from '../components/dialogs/CloudImportDialog';
+import { SyncFolderToDataroomsDialog } from '../components/dialogs/SyncFolderToDataroomsDialog';
 import { FileRequestSheet } from '../components/filerequests/FileRequestSheet';
 import { TooltipProvider } from '../components/ui/Tooltip';
 
@@ -66,7 +67,13 @@ function DocumentsPage() {
   const [isMoveItemsOpen, setIsMoveItemsOpen] = useState(false);
   const [isFileRequestSheetOpen, setIsFileRequestSheetOpen] = useState(false);
   const [selectedFolderForRequest, setSelectedFolderForRequest] = useState(null);
+  const [syncTarget, setSyncTarget] = useState(null);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
+
+  const folderToSync = useMemo(
+    () => (syncTarget ? folders.find((f) => f.id === syncTarget.id) || syncTarget : null),
+    [syncTarget, folders]
+  );
   const {
     searchInput: searchQuery,
     setSearchInput: setSearchQuery,
@@ -253,6 +260,10 @@ function DocumentsPage() {
       setBreadcrumbData(null);
     };
   }, [fetchData, setBreadcrumbData, setSelection, setLastSelectedItem]);
+
+  useEffect(() => {
+    setSyncTarget(null);
+  }, [folderId]);
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -568,6 +579,15 @@ function DocumentsPage() {
         onOpenChange={setIsAddFolderOpen}
         onConfirm={handleCreateFolder}
       />
+      <SyncFolderToDataroomsDialog
+        isOpen={Boolean(syncTarget)}
+        onOpenChange={(open) => !open && setSyncTarget(null)}
+        folder={folderToSync}
+        onSuccess={() => {
+          fetchDataRef.current?.();
+          refreshUser();
+        }}
+      />
       <section className="mb-4 flex items-center justify-end space-x-2 sm:space-x-0">
         <div className="relative flex items-center gap-x-2">
           <Button
@@ -708,6 +728,7 @@ function DocumentsPage() {
         onCopy={handleCopy}
         onShare={handleShare}
         onRequestFiles={handleRequestFiles}
+        onSyncDatarooms={(folder) => setSyncTarget(folder)}
         viewsTooltip={t('documents.viewsTooltip')}
       />
       </div>

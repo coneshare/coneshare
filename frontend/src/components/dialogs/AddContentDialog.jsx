@@ -68,7 +68,7 @@ function Breadcrumbs({ path, onNavigate }) {
   );
 }
 
-export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
+export function AddContentDialog({ isOpen, onOpenChange, onConfirm, canSyncFolders = true }) {
   const { t } = useTranslation();
   const [currentFolder, setCurrentFolder] = useState(null);
   const [folders, setFolders] = useState([]);
@@ -77,6 +77,7 @@ export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const [selection, setSelection] = useState({ documents: [], folders: [] });
+  const [syncFolders, setSyncFolders] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const requestIdRef = useRef(0);
   const lastRequestedFolderIdRef = useRef(null);
@@ -113,6 +114,7 @@ export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
     if (isOpen) {
       setSearchQuery('');
       setSelection({ documents: [], folders: [] });
+      setSyncFolders(false);
       fetchData(null);
     }
   }, [isOpen, fetchData]);
@@ -125,6 +127,7 @@ export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
     }
     setSearchQuery('');
     setSelection({ documents: [], folders: [] });
+    setSyncFolders(false);
     fetchData(folderId);
   };
 
@@ -140,6 +143,7 @@ export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
 
   const handleClearSelection = () => {
     setSelection({ documents: [], folders: [] });
+    setSyncFolders(false);
   };
 
   const handleConfirm = async () => {
@@ -150,8 +154,9 @@ export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
     setIsConfirming(true);
     try {
       await onConfirm({
-        document_ids: selection.documents,
-        folder_ids: selection.folders,
+        documentIds: selection.documents,
+        folderIds: selection.folders,
+        ...(canSyncFolders && syncFolders && selection.folders.length > 0 ? { syncFolders: true } : {}),
       });
     } catch (error) {
       console.error('Failed to add content to dataroom:', error);
@@ -369,6 +374,32 @@ export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
             </div>
           )}
         </div>
+
+        {/* Sync Opt-in (shown when folders can be synced and one or more folders are selected) */}
+        {canSyncFolders && selection.folders.length > 0 && (
+          <div className="px-6 py-2.5 bg-slate-50/50 dark:bg-zinc-900/50 border-t border-slate-100 dark:border-zinc-800/80 shrink-0">
+            <label
+              htmlFor="add-content-sync-folders"
+              className="flex items-start gap-2.5 cursor-pointer select-none"
+            >
+              <Checkbox
+                id="add-content-sync-folders"
+                checked={syncFolders}
+                onCheckedChange={(checked) => setSyncFolders(Boolean(checked))}
+                disabled={isConfirming}
+                className="mt-0.5"
+              />
+              <div className="min-w-0">
+                <span className="block text-xs font-medium text-slate-800 dark:text-zinc-200">
+                  {t('datarooms.keepFoldersSynced')}
+                </span>
+                <span className="block text-[11px] text-slate-500 dark:text-zinc-400">
+                  {t('datarooms.keepFoldersSyncedHint')}
+                </span>
+              </div>
+            </label>
+          </div>
+        )}
 
         {/* Footer */}
         <DialogFooter className="px-6 py-3 bg-slate-50/70 dark:bg-zinc-800/40 border-t border-slate-100 dark:border-zinc-800/80 flex flex-row items-center justify-between sm:justify-between sm:space-x-0 shrink-0">

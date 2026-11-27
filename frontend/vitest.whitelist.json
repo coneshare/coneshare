@@ -75,6 +75,7 @@
     "src/tests/pages/DocumentsPage.test.jsx",
     "src/tests/components/common/GlobalErrorBoundary.test.jsx",
     "src/tests/components/SearchBox.test.jsx",
-    "src/tests/pages/OAuthAuthorizePage.test.jsx"
+    "src/tests/pages/OAuthAuthorizePage.test.jsx",
+    "src/tests/components/dialogs/SyncFolderToDataroomsDialog.test.jsx"
   ]
 }

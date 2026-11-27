@@ -12,12 +12,12 @@ import '../../i18n';
 vi.mock('../../services/api');
 
 vi.mock('../../components/dialogs/AddContentDialog', () => ({
-    AddContentDialog: ({ isOpen, onOpenChange, onConfirm }) => {
+    AddContentDialog: ({ isOpen, onOpenChange, onConfirm, canSyncFolders = true }) => {
         if (!isOpen) return null;
         return (
-            <div data-testid="mock-add-content-dialog">
+            <div data-testid="mock-add-content-dialog" data-can-sync-folders={String(canSyncFolders)}>
                 <h1>Add Content Dialog</h1>
-                <button onClick={() => onConfirm({ document_ids: ['doc_new'], folder_ids: [] })}>
+                <button onClick={() => onConfirm({ documentIds: ['doc_new'], folderIds: [] })}>
                     Confirm
                 </button>
                 <button onClick={() => onOpenChange(false)}>Cancel</button>
@@ -675,6 +675,88 @@ describe('DataroomPage', () => {
             expect(api.addContentToDataroom).toHaveBeenCalledTimes(2);
         });
 
+        it('disables folder sync opt-in inside synced folders and keeps AddContentDialog open on error', async () => {
+            api.getDataroomFolderContents.mockResolvedValue({
+                data: {
+                    id: 'folder1',
+                    name: 'Sub Folder',
+                    is_synced: true,
+                    has_synced_ancestor: false,
+                    ancestors: [],
+                    items: [
+                        {
+                            id: 'manual_sub',
+                            type: 'folder',
+                            name: 'Manual Sub',
+                            is_synced: false,
+                            has_synced_ancestor: true,
+                            updated_at: '2023-01-01T12:00:00Z',
+                            ancestors: [{ id: 'folder1', name: 'Sub Folder' }],
+                        },
+                    ],
+                    sub_folders: [
+                        {
+                            id: 'manual_sub',
+                            name: 'Manual Sub',
+                            is_synced: false,
+                            has_synced_ancestor: true,
+                            updated_at: '2023-01-01T12:00:00Z',
+                            ancestors: [{ id: 'folder1', name: 'Sub Folder' }],
+                        },
+                    ],
+                    documents: [],
+                },
+            });
+            api.addContentToDataroom.mockRejectedValue(new Error('Request failed with status code 400'));
+
+            const user = userEvent.setup();
+            renderComponent();
+
+            // At root, folder sync opt-in is allowed
+            await user.click(await screen.findByRole('button', { name: /add content/i }));
+            let dialog = await screen.findByTestId('mock-add-content-dialog');
+            expect(dialog).toHaveAttribute('data-can-sync-folders', 'true');
+            await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+            // Navigate into synced folder
+            await user.click(await screen.findByText('Sub Folder'));
+            await waitFor(() => {
+                expect(api.getDataroomFolderContents).toHaveBeenCalledWith('folder1');
+            });
+
+            await user.click(screen.getByRole('button', { name: /add content/i }));
+            dialog = await screen.findByTestId('mock-add-content-dialog');
+            expect(dialog).toHaveAttribute('data-can-sync-folders', 'false');
+
+            await user.click(within(dialog).getByRole('button', { name: 'Confirm' }));
+            await waitFor(() => {
+                expect(api.addContentToDataroom).toHaveBeenCalledTimes(1);
+            });
+            expect(screen.getByTestId('mock-add-content-dialog')).toBeInTheDocument();
+            await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+            // Unsynced subfolder created inside a synced ancestor tree also disallows sync opt-in
+            api.getDataroomFolderContents.mockResolvedValueOnce({
+                data: {
+                    id: 'manual_sub',
+                    name: 'Manual Sub',
+                    is_synced: false,
+                    has_synced_ancestor: true,
+                    ancestors: [{ id: 'folder1', name: 'Sub Folder' }],
+                    items: [],
+                    sub_folders: [],
+                    documents: [],
+                },
+            });
+            await user.click(screen.getByText('Manual Sub'));
+            await waitFor(() => {
+                expect(api.getDataroomFolderContents).toHaveBeenCalledWith('manual_sub');
+            });
+            await user.click(screen.getAllByRole('button', { name: /add content/i })[0]);
+            dialog = await screen.findByTestId('mock-add-content-dialog');
+            expect(dialog).toHaveAttribute('data-can-sync-folders', 'false');
+        });
+
         describe('Single Item Actions via Menu', () => {
             it('should rename a document and refresh', async () => {
                 api.renameDataroomDocument.mockResolvedValue({});
@@ -725,6 +807,51 @@ describe('DataroomPage', () => {
                     });
                 });
         
+                await waitFor(() => {
+                    expect(api.getDataroom).toHaveBeenCalledTimes(2);
+                });
+            });
+
+            it('should unlink a synced root folder via action menu and refresh', async () => {
+                api.getDataroom.mockResolvedValue({
+                    data: {
+                        id: 'dr123',
+                        name: 'Test Dataroom',
+                        created_at: new Date().toISOString(),
+                        items: [
+                            {
+                                id: 'folder_sync',
+                                type: 'folder',
+                                name: 'Synced Folder',
+                                is_synced: true,
+                                is_sync_root: true,
+                                source_folder: 'src_1',
+                                source_folder_name: 'Synced Folder',
+                                source_folder_deleted: false,
+                                updated_at: new Date().toISOString(),
+                            },
+                        ],
+                    },
+                });
+                api.unlinkDataroomFolder.mockResolvedValue({
+                    data: { id: 'folder_sync', is_synced: false, is_sync_root: false, source_folder: null },
+                });
+                const user = userEvent.setup();
+                renderComponent();
+
+                const folderRow = await screen.findByText('Synced Folder').then(el => el.closest('[data-testid^="draggable-item-"]'));
+                expect(within(folderRow).getByText('Synced')).toBeInTheDocument();
+                await user.click(within(folderRow).getByRole('button', { name: /actions for/i }));
+
+                const unlinkMenuItem = await screen.findByRole('menuitem', { name: 'Unlink' });
+                await user.click(unlinkMenuItem);
+
+                const dialog = await screen.findByRole('dialog', { name: /unlink "Synced Folder"\?/i });
+                await user.click(within(dialog).getByRole('button', { name: 'Unlink' }));
+
+                await waitFor(() => {
+                    expect(api.unlinkDataroomFolder).toHaveBeenCalledWith('folder_sync');
+                });
                 await waitFor(() => {
                     expect(api.getDataroom).toHaveBeenCalledTimes(2);
                 });

@@ -366,18 +366,19 @@ class DataroomFolderSerializer(serializers.ModelSerializer):
     source_folder_name = serializers.SerializerMethodField()
     source_folder_deleted = serializers.SerializerMethodField()
     is_sync_root = serializers.SerializerMethodField()
+    has_synced_ancestor = serializers.SerializerMethodField()
 
     class Meta:
         model = DataroomFolder
         fields = [
             'id', 'name', 'dataroom', 'parent', 'is_starred',
             'is_synced', 'source_folder', 'source_folder_name',
-            'source_folder_deleted', 'is_sync_root', 'last_synced_at',
+            'source_folder_deleted', 'is_sync_root', 'has_synced_ancestor', 'last_synced_at',
             'created_at', 'updated_at', 'ancestors', 'created_by'
         ]
         read_only_fields = [
             'id', 'is_synced', 'source_folder', 'source_folder_name',
-            'source_folder_deleted', 'is_sync_root', 'last_synced_at',
+            'source_folder_deleted', 'is_sync_root', 'has_synced_ancestor', 'last_synced_at',
             'created_at', 'updated_at', 'ancestors', 'created_by'
         ]
 
@@ -396,6 +397,35 @@ class DataroomFolderSerializer(serializers.ModelSerializer):
         if not obj.is_synced:
             return False
         return not (obj.parent_id and obj.parent and obj.parent.is_synced)
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_has_synced_ancestor(self, obj) -> bool:
+        folder_parent_map = self.context.get('dataroom_folder_parent_map')
+        if folder_parent_map is not None:
+            visited = {str(obj.id)}
+            node_id = str(obj.parent_id) if obj.parent_id else None
+            use_map = True
+            while node_id and node_id not in visited:
+                visited.add(node_id)
+                parent = folder_parent_map.get(node_id)
+                if not parent or 'is_synced' not in parent:
+                    use_map = False
+                    break
+                if parent['is_synced']:
+                    return True
+                parent_id = parent.get('parent_id')
+                node_id = str(parent_id) if parent_id else None
+            if use_map:
+                return False
+
+        visited = {str(obj.id)}
+        parent = obj.parent
+        while parent and str(parent.id) not in visited:
+            if parent.is_synced:
+                return True
+            visited.add(str(parent.id))
+            parent = parent.parent
+        return False
 
     @extend_schema_field(DataroomCollaboratorUserSerializer(allow_null=True))
     def get_created_by(self, obj):
@@ -472,13 +502,14 @@ class DataroomDocumentSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     dataroom_view_count = serializers.SerializerMethodField()
     is_direct_upload = serializers.BooleanField(read_only=True)
+    is_synced = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = DataroomDocument
         fields = [
             'id', 'name', 'document_id', 'document_type', 'created_at',
             'file_size', 'updated_at', 'created_by', 'folder', 'is_starred',
-            'dataroom_view_count', 'is_direct_upload'
+            'dataroom_view_count', 'is_direct_upload', 'is_synced'
         ]
 
     @extend_schema_field(serializers.CharField())
@@ -577,8 +608,9 @@ class DataroomDetailSerializer(serializers.ModelSerializer):
                     'id': row['id'],
                     'name': row['name'],
                     'parent_id': row['parent_id'],
+                    'is_synced': row['is_synced'],
                 }
-                for row in obj.folders.values('id', 'name', 'parent_id')
+                for row in obj.folders.values('id', 'name', 'parent_id', 'is_synced')
             }
         serializer_context = {**self.context}
         if folder_parent_map is not None:

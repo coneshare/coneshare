@@ -10,10 +10,13 @@ import {
   getPublicQnaSummary,
   getPublicQnaThreads,
   getShareLinkViewData,
+  syncFolderToDatarooms,
   updateOwnerQnaThreadStatus,
   downloadDataroomFolder,
   downloadDataroomArchive,
 } from "../../services/api";
+import i18n from "../../i18n";
+import { getLocalizedErrorMessage } from "../../utils/errorTranslator";
 import { DATAROOM_VIEWER_PAGE_SIZE } from "../../constants/pagination";
 import axios from "axios";
 import { toast } from "sonner";
@@ -634,6 +637,43 @@ describe("API Service Interceptors", () => {
       expect(createdAnchor.getAttribute("download")).toBe("");
 
       vi.restoreAllMocks();
+    });
+
+    it("suppresses global toast.error when syncFolderToDatarooms fails with HTTP 400", async () => {
+      const originalError = {
+        response: {
+          status: 400,
+          data: { detail: "Syncing this folder would exceed the Dataroom storage limit of 10 MB." },
+        },
+        config: { url: "/folders/folder-1/sync-datarooms/", skipErrorToast: true },
+      };
+      mockAdapter.mockRejectedValue(originalError);
+
+      await expect(
+        syncFolderToDatarooms("folder-1", { dataroom_folder_ids: ["df-1"] })
+      ).rejects.toBe(originalError);
+
+      expect(mockAdapter).toHaveBeenCalledWith(
+        expect.objectContaining({ skipErrorToast: true })
+      );
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it("translates sync-isolation 400 backend messages into localized strings", async () => {
+      await i18n.changeLanguage("zh-hans");
+      try {
+        expect(
+          getLocalizedErrorMessage("Cannot add a synced folder inside an already synced folder.")
+        ).toBe("无法在已同步的文件夹内部再添加同步文件夹。");
+        expect(
+          getLocalizedErrorMessage("Cannot move a subfolder out of a synced folder tree.")
+        ).toBe("无法将同步子文件夹移出所属的同步文件夹。");
+        expect(
+          getLocalizedErrorMessage("Cannot move a synced folder inside another synced folder.")
+        ).toBe("无法将同步文件夹移入另一个同步文件夹。");
+      } finally {
+        await i18n.changeLanguage("en");
+      }
     });
   });
 });
