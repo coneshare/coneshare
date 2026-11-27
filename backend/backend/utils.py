@@ -130,20 +130,18 @@ def get_client_ip(request):
     return remote_addr
 
 
-def get_unique_name(model_class, original_name: str, filter_kwargs: dict, has_extension: bool, base_qs=None) -> str:
+def get_unique_name(
+    model_class,
+    original_name: str,
+    filter_kwargs: dict,
+    has_extension: bool,
+    base_qs=None,
+    max_length: int = 255,
+) -> str:
     """
     Generates a unique name for a model instance within a given scope.
-    If 'name' exists, it will suggest 'name (2)', 'name (3)', etc.
-    This is optimized to use a single database query.
-
-    Args:
-        model_class: The Django model class to query (e.g., Document, Folder).
-        original_name: The desired name for the instance.
-        filter_kwargs: A dictionary of filters to define the uniqueness scope
-                       (e.g., {'organization': org, 'folder': folder}).
-        has_extension: A boolean indicating if the name has a file extension
-                       that should be preserved.
-        base_qs: Optional base queryset to query against (defaults to active items).
+    If 'name' exists, it will suggest 'name (2)', 'name (3)', etc., truncating the
+    base name when needed so the deduplicated result stays within `max_length`.
     """
     if not original_name:
         return ""
@@ -194,8 +192,30 @@ def get_unique_name(model_class, original_name: str, filter_kwargs: dict, has_ex
                 if num > highest_num:
                     highest_num = num
 
-    # The new name will have the next number in sequence.
-    return f"{base} ({highest_num + 1}){ext}"
+    # Fast path: fits within max_length without truncating base.
+    candidate = f"{base} ({highest_num + 1}){ext}"
+    if max_length is None or len(candidate) <= max_length:
+        return candidate
+
+    # Long-name fallback: preserve short extensions and guarantee result fits within max_length.
+    effective_base, effective_ext = (
+        (original_name, "")
+        if has_extension and len(ext) > 32
+        else (base, ext)
+    )
+    sibling_names = set(base_qs.filter(**filter_kwargs).values_list('name', flat=True))
+    counter = 2
+    while True:
+        suffix = f" ({counter})"
+        if len(suffix) + len(effective_ext) >= max_length:
+            allowed_len = max(0, max_length - len(suffix))
+            truncated_candidate = f"{original_name[:allowed_len]}{suffix}"
+        else:
+            allowed_base_len = max_length - len(suffix) - len(effective_ext)
+            truncated_candidate = f"{effective_base[:allowed_base_len]}{suffix}{effective_ext}"
+        if truncated_candidate not in sibling_names:
+            return truncated_candidate
+        counter += 1
 
 
 def parse_user_agent(ua_string: str) -> tuple:

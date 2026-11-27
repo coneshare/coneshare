@@ -13,7 +13,6 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 
-from backend.utils import get_unique_name
 from core.models import User
 from core.pagination import StandardResultsSetPagination
 from core.permissions import require_full_access
@@ -41,12 +40,23 @@ from .models import (
     DataroomItemOrder,
 )
 from .services import (
+    append_item_order,
+    check_dataroom_quota_for_documents,
+    collect_subtree_active_document_ids,
     delete_dataroom,
+    folder_has_synced_ancestor,
+    get_dataroom_queryset_for_user,
+    get_unique_dataroom_document_name,
+    get_unique_dataroom_folder_name,
     remove_dataroom_content,
+    replicate_folder_to_dataroom,
+    scope_has_item_order_rows,
     touch_dataroom,
     touch_dataroom_folder_ancestors,
     get_or_create_dataroom_storage_folder,
+    unlink_dataroom_folder,
     upgrade_dataroom_to_v2,
+    validate_dataroom_folder_reparent,
     sync_dataroom_rename,
     sync_dataroom_folder_rename,
     sync_dataroom_document_rename,
@@ -101,20 +111,6 @@ def _folder_chain(folder_id, folder_map):
         current_id = str(parent_id) if parent_id else None
     parts.reverse()
     return parts
-
-
-def get_dataroom_queryset_for_user(user):
-    """
-    Returns the queryset of datarooms accessible to a given user:
-    - If user is an org admin: all datarooms in their organization.
-    - Otherwise: datarooms created by the user OR where the user is a collaborator.
-    """
-    if getattr(user, 'role', '') == 'admin':
-        return Dataroom.objects.filter(organization=user.organization)
-    return Dataroom.objects.filter(
-        Q(created_by=user) | Q(collaborators__user=user),
-        organization=user.organization
-    ).distinct()
 
 
 @extend_schema(tags=['datarooms'])
@@ -173,7 +169,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
         matched_folders = list(
             dataroom.folders.filter(name__icontains=query).select_related(
-                'created_by', 'dataroom', 'dataroom__created_by', 'parent'
+                'created_by', 'dataroom', 'dataroom__created_by', 'parent', 'source_folder'
             ).order_by('name', 'id')[:100]
         )
         matched_documents = list(
@@ -227,81 +223,6 @@ class DataroomViewSet(viewsets.ModelViewSet):
         instance = serializer.save()
         sync_dataroom_rename(instance, old_name)
 
-    def _scope_has_item_order_rows(self, dataroom, parent_folder):
-        return DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=parent_folder).exists()
-
-    def _append_item_order(self, dataroom, parent_folder, item_type, folder=None, dataroom_document=None):
-        current_max = (
-            DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=parent_folder)
-            .order_by("-position")
-            .values_list("position", flat=True)
-            .first()
-        )
-        next_position = (current_max + 1) if current_max is not None else 0
-        DataroomItemOrder.objects.create(
-            dataroom=dataroom,
-            parent_folder=parent_folder,
-            item_type=item_type,
-            folder=folder,
-            dataroom_document=dataroom_document,
-            position=next_position,
-        )
-
-    def _collect_all_folder_document_ids(self, folders, user):
-        collected_doc_ids = set()
-        stack = list(folders)
-        while stack:
-            current = stack.pop()
-            collected_doc_ids.update(
-                current.documents.active().filter(created_by=user).values_list('id', flat=True)
-            )
-            stack.extend(list(current.children.active().filter(created_by=user)))
-        return collected_doc_ids
-
-    def _replicate_folder_structure(self, dataroom, source_folder, parent_dataroom_folder, requesting_user):
-        """
-        Recursively replicates a source folder structure and its documents
-        into a dataroom.
-        """
-        # Create a new DataroomFolder for the source folder.
-        new_dataroom_folder = DataroomFolder.objects.create(
-            dataroom=dataroom,
-            name=source_folder.name,
-            parent=parent_dataroom_folder,
-            created_by=requesting_user or getattr(source_folder, 'created_by', None) or dataroom.created_by,
-        )
-        if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, parent_dataroom_folder):
-            self._append_item_order(
-                dataroom=dataroom,
-                parent_folder=parent_dataroom_folder,
-                item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
-                folder=new_dataroom_folder,
-            )
-
-        # Add documents from the source folder to the new dataroom folder.
-        for doc in source_folder.documents.filter(created_by=requesting_user):
-            unique_name = self._get_unique_dataroom_document_name(
-                dataroom, new_dataroom_folder, doc.name
-            )
-            created_doc = DataroomDocument.objects.create(
-                dataroom=dataroom,
-                document=doc,
-                folder=new_dataroom_folder,
-                name=unique_name,
-                is_direct_upload=False,
-            )
-            if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, new_dataroom_folder):
-                self._append_item_order(
-                    dataroom=dataroom,
-                    parent_folder=new_dataroom_folder,
-                    item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
-                    dataroom_document=created_doc,
-                )
-
-        # Recurse for subfolders.
-        for subfolder in source_folder.children.filter(created_by=requesting_user):
-            self._replicate_folder_structure(dataroom, subfolder, new_dataroom_folder, requesting_user)
-
     @action(detail=True, methods=['post'], url_path='add-content')
     def add_content(self, request, pk=None):
         dataroom = self.get_object()
@@ -313,6 +234,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
         doc_ids = data.get('document_ids', [])
         folder_ids = data.get('folder_ids', [])
         dest_folder_id = data.get('destination_folder_id')
+        sync_folders = data.get('sync_folders', False)
 
         destination_folder = None
         if dest_folder_id:
@@ -321,6 +243,11 @@ class DataroomViewSet(viewsets.ModelViewSet):
         try:
             with transaction.atomic():
                 locked_dataroom = Dataroom.objects.select_for_update().get(id=dataroom.id)
+                if sync_folders and folder_ids and folder_has_synced_ancestor(destination_folder):
+                    return Response(
+                        {"detail": "Cannot add a synced folder inside an already synced folder."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
                 # Add individual documents.
                 docs_to_add = Document.objects.active().filter(id__in=doc_ids, created_by=request.user)
@@ -334,28 +261,17 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
                 # Check Dataroom storage quota cap under row lock
                 if locked_dataroom.storage_quota_mb and locked_dataroom.storage_quota_mb > 0:
-                    all_new_doc_ids = set(docs_to_add.values_list('id', flat=True)) | self._collect_all_folder_document_ids(folders_to_add, request.user)
-                    existing_doc_ids = set(
-                        DataroomDocument.objects.filter(dataroom=locked_dataroom).values_list('document_id', flat=True)
+                    all_new_doc_ids = set(docs_to_add.values_list('id', flat=True))
+                    for folder in folders_to_add:
+                        all_new_doc_ids |= collect_subtree_active_document_ids(folder, request.user)
+                    check_dataroom_quota_for_documents(
+                        locked_dataroom,
+                        all_new_doc_ids,
+                        action_label="Adding these items",
                     )
-                    unique_added_ids = all_new_doc_ids - existing_doc_ids
-                    additional_bytes = Document.objects.filter(
-                        id__in=unique_added_ids,
-                        deleted_at__isnull=True
-                    ).aggregate(total=Sum('file_size'))['total'] or 0
-
-                    current_usage = get_dataroom_storage_used_bytes(locked_dataroom)
-                    room_quota_bytes = locked_dataroom.storage_quota_mb * 1024 * 1024
-                    if current_usage + additional_bytes > room_quota_bytes:
-                        return Response(
-                            {
-                                'detail': f"Adding these items would exceed the Dataroom storage limit of {locked_dataroom.storage_quota_mb} MB."
-                            },
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
 
                 for doc in docs_to_add:
-                    unique_name = self._get_unique_dataroom_document_name(
+                    unique_name = get_unique_dataroom_document_name(
                         dataroom, destination_folder, doc.name
                     )
                     created_doc = DataroomDocument.objects.create(
@@ -365,8 +281,8 @@ class DataroomViewSet(viewsets.ModelViewSet):
                         name=unique_name,
                         is_direct_upload=False,
                     )
-                    if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, destination_folder):
-                        self._append_item_order(
+                    if scope_has_item_order_rows(dataroom, destination_folder):
+                        append_item_order(
                             dataroom=dataroom,
                             parent_folder=destination_folder,
                             item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
@@ -374,7 +290,13 @@ class DataroomViewSet(viewsets.ModelViewSet):
                         )
 
                 for folder in folders_to_add:
-                    self._replicate_folder_structure(dataroom, folder, destination_folder, request.user)
+                    replicate_folder_to_dataroom(
+                        dataroom=dataroom,
+                        source_folder=folder,
+                        parent_dataroom_folder=destination_folder,
+                        requesting_user=request.user,
+                        sync_enabled=sync_folders,
+                    )
 
                 if destination_folder:
                     touch_dataroom_folder_ancestors(destination_folder)
@@ -382,6 +304,8 @@ class DataroomViewSet(viewsets.ModelViewSet):
                     touch_dataroom(dataroom)
 
             return Response({"detail": "Content added successfully."}, status=status.HTTP_200_OK)
+        except QuotaExceededError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except PermissionDenied as e:
             return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
         except Exception as e:
@@ -404,19 +328,6 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
         remove_dataroom_content(dataroom, dataroom_doc_ids, dataroom_folder_ids)
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def _get_unique_dataroom_folder_name(self, dataroom, parent_folder, original_name):
-        filter_kwargs = {
-            'dataroom': dataroom, 'parent': parent_folder
-        }
-        return get_unique_name(DataroomFolder, original_name, filter_kwargs, has_extension=False)
-
-    def _get_unique_dataroom_document_name(self, dataroom, parent_folder, original_name):
-        filter_kwargs = {
-            'dataroom': dataroom,
-            'folder': parent_folder
-        }
-        return get_unique_name(DataroomDocument, original_name, filter_kwargs, has_extension=True)
 
     @action(detail=True, methods=['post'], url_path='reorder-items')
     def reorder_items(self, request, pk=None):
@@ -504,6 +415,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
         try:
             with transaction.atomic():
+                Dataroom.objects.select_for_update().get(id=dataroom.id)
                 destination_folder = None
                 if dest_folder_id:
                     destination_folder = get_object_or_404(
@@ -521,21 +433,27 @@ class DataroomViewSet(viewsets.ModelViewSet):
                         docs_changed_parent.append(doc)
                         if old_folder:
                             source_folders.add(old_folder)
-                        doc.name = self._get_unique_dataroom_document_name(dataroom, destination_folder, doc.name)
+                        doc.name = get_unique_dataroom_document_name(dataroom, destination_folder, doc.name)
                         doc.folder = destination_folder
+                        doc.is_synced = False
                         doc.save()
 
-                folders_to_move = DataroomFolder.objects.filter(id__in=folder_ids, dataroom=dataroom)
+                folders_to_move = DataroomFolder.objects.filter(id__in=folder_ids, dataroom=dataroom).select_related('parent')
                 folders_changed_parent = []
+                dest_has_synced_ancestor = folder_has_synced_ancestor(destination_folder)
+
                 for folder in folders_to_move:
-                    if folder.id == dest_folder_id:
-                        raise serializers.ValidationError("Cannot move a folder into itself.")
+                    validate_dataroom_folder_reparent(
+                        folder,
+                        destination_folder,
+                        dest_has_synced_ancestor=dest_has_synced_ancestor,
+                    )
                     old_parent = folder.parent
                     if old_parent != destination_folder:
                         folders_changed_parent.append(folder)
                         if old_parent:
                             source_folders.add(old_parent)
-                        folder.name = self._get_unique_dataroom_folder_name(dataroom, destination_folder, folder.name)
+                        folder.name = get_unique_dataroom_folder_name(dataroom, destination_folder, folder.name)
                         folder.parent = destination_folder
                         folder.save()
 
@@ -552,13 +470,13 @@ class DataroomViewSet(viewsets.ModelViewSet):
                     DataroomItemOrder.objects.filter(dataroom=dataroom, dataroom_document__in=docs_changed_parent).delete()
 
                 # If destination scope uses custom ordering, append items that changed parent to the end
-                if (folders_changed_parent or docs_changed_parent) and self._scope_has_item_order_rows(dataroom, destination_folder):
+                if (folders_changed_parent or docs_changed_parent) and scope_has_item_order_rows(dataroom, destination_folder):
                     for folder in folders_changed_parent:
-                        self._append_item_order(
+                        append_item_order(
                             dataroom, destination_folder, DataroomItemOrder.ITEM_TYPE_FOLDER, folder=folder
                         )
                     for doc in docs_changed_parent:
-                        self._append_item_order(
+                        append_item_order(
                             dataroom, destination_folder, DataroomItemOrder.ITEM_TYPE_DOCUMENT, dataroom_document=doc
                         )
 
@@ -666,10 +584,11 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
         try:
             with transaction.atomic():
+                Dataroom.objects.select_for_update().get(id=dataroom.id)
                 top_level_dirs = {Path(p).parts[0] for p in paths if Path(p).parts}
                 path_mappings = {}
                 for original_name in top_level_dirs:
-                    unique_name = self._get_unique_dataroom_folder_name(
+                    unique_name = get_unique_dataroom_folder_name(
                         dataroom=dataroom,
                         parent_folder=parent_folder,
                         original_name=original_name
@@ -719,8 +638,8 @@ class DataroomViewSet(viewsets.ModelViewSet):
                     if created:
                         any_created = True
 
-                    if created and dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, parent_dataroom_folder):
-                        self._append_item_order(
+                    if created and scope_has_item_order_rows(dataroom, parent_dataroom_folder):
+                        append_item_order(
                             dataroom=dataroom,
                             parent_folder=parent_dataroom_folder,
                             item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
@@ -805,7 +724,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
             if file_name_from_path:
                 file_name = file_name_from_path
 
-        unique_name = self._get_unique_dataroom_document_name(
+        unique_name = get_unique_dataroom_document_name(
             dataroom=dataroom,
             parent_folder=destination_folder,
             original_name=file_name
@@ -922,7 +841,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
                     track_user_quota=track_user_quota,
                 )
 
-                unique_name = self._get_unique_dataroom_document_name(
+                unique_name = get_unique_dataroom_document_name(
                     dataroom=dataroom,
                     parent_folder=destination_folder,
                     original_name=document.name
@@ -935,8 +854,8 @@ class DataroomViewSet(viewsets.ModelViewSet):
                     is_direct_upload=True,
                 )
 
-                if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, destination_folder):
-                    self._append_item_order(
+                if scope_has_item_order_rows(dataroom, destination_folder):
+                    append_item_order(
                         dataroom=dataroom,
                         parent_folder=destination_folder,
                         item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
@@ -1082,18 +1001,20 @@ class DataroomViewSet(viewsets.ModelViewSet):
         if not (is_self_removal or is_dataroom_owner_or_admin(request.user, dataroom)):
             raise PermissionDenied("You do not have permission to remove this collaborator.")
 
-        collaborator = DataroomCollaborator.objects.filter(
-            dataroom=dataroom,
-            user_id=user_id
-        ).first()
+        with transaction.atomic():
+            locked_dataroom = Dataroom.objects.select_for_update().get(id=dataroom.id)
+            collaborator = DataroomCollaborator.objects.filter(
+                dataroom=locked_dataroom,
+                user_id=user_id
+            ).first()
 
-        if not collaborator:
-            return Response(
-                {"detail": "Collaborator not found in this dataroom."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            if not collaborator:
+                return Response(
+                    {"detail": "Collaborator not found in this dataroom."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
 
-        collaborator.delete()
+            collaborator.delete()
         return Response({"detail": "Collaborator removed successfully."}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], url_path='transfer-ownership')
@@ -1382,7 +1303,9 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
         The dataroom must belong to the user's organization.
         """
         accessible_datarooms = get_dataroom_queryset_for_user(self.request.user)
-        queryset = self.queryset.filter(dataroom__in=accessible_datarooms).select_related('created_by', 'dataroom', 'dataroom__created_by')
+        queryset = self.queryset.filter(dataroom__in=accessible_datarooms).select_related(
+            'created_by', 'dataroom', 'dataroom__created_by', 'parent', 'source_folder'
+        )
         dataroom_id = self.request.query_params.get('dataroom_id')
         if dataroom_id:
             queryset = queryset.filter(dataroom_id=dataroom_id)
@@ -1391,7 +1314,9 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         # Custom logic to include sub-folders and documents
-        sub_folders = instance.children.all().select_related('created_by', 'dataroom', 'dataroom__created_by').order_by('created_at', 'id')
+        sub_folders = instance.children.all().select_related(
+            'created_by', 'dataroom', 'dataroom__created_by', 'parent', 'source_folder'
+        ).order_by('created_at', 'id')
         documents = DataroomDocument.objects.filter(
             folder=instance, document__deleted_at__isnull=True
         ).select_related('document', 'document__created_by').annotate(
@@ -1419,41 +1344,30 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
         name = serializer.validated_data['name']
         parent = serializer.validated_data.get('parent')
 
-        if DataroomFolder.objects.filter(dataroom=dataroom, parent=parent, name=name).exists():
-            raise serializers.ValidationError({'name': _('A folder with this name already exists in this location.')})
-
-        saved_folder = serializer.save(created_by=self.request.user)
-        if saved_folder.parent:
-            touch_dataroom_folder_ancestors(saved_folder.parent)
-        else:
-            touch_dataroom(dataroom)
-        if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, parent):
-            self._append_item_order(
-                dataroom=dataroom,
-                parent_folder=parent,
-                item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
-                folder=saved_folder,
+        with transaction.atomic():
+            locked_dataroom = (
+                Dataroom.objects.select_for_update()
+                .prefetch_related('collaborators')
+                .get(id=dataroom.id)
             )
+            if not is_dataroom_collaborator_or_above(self.request.user, locked_dataroom):
+                raise PermissionDenied("You do not have permission to add folders to this dataroom.")
 
-    def _scope_has_item_order_rows(self, dataroom, parent_folder):
-        return DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=parent_folder).exists()
+            if DataroomFolder.objects.filter(dataroom=dataroom, parent=parent, name=name).exists():
+                raise serializers.ValidationError({'name': _('A folder with this name already exists in this location.')})
 
-    def _append_item_order(self, dataroom, parent_folder, item_type, folder=None, dataroom_document=None):
-        current_max = (
-            DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=parent_folder)
-            .order_by('-position')
-            .values_list('position', flat=True)
-            .first()
-        )
-        next_position = 0 if current_max is None else current_max + 1
-        DataroomItemOrder.objects.create(
-            dataroom=dataroom,
-            parent_folder=parent_folder,
-            item_type=item_type,
-            folder=folder,
-            dataroom_document=dataroom_document,
-            position=next_position,
-        )
+            saved_folder = serializer.save(created_by=self.request.user)
+            if saved_folder.parent:
+                touch_dataroom_folder_ancestors(saved_folder.parent)
+            else:
+                touch_dataroom(dataroom)
+            if scope_has_item_order_rows(dataroom, parent):
+                append_item_order(
+                    dataroom=dataroom,
+                    parent_folder=parent,
+                    item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
+                    folder=saved_folder,
+                )
 
     def perform_update(self, serializer):
         instance = self.get_object()
@@ -1480,6 +1394,23 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
 
         if new_name and new_name != old_name:
             sync_dataroom_folder_rename(instance, old_name, new_name)
+
+    @action(detail=True, methods=['post'], url_path='unlink')
+    def unlink(self, request, pk=None):
+        """
+        Safely detaches a sync-root DataroomFolder and its synced subtree from source Folders.
+        """
+        dfolder = self.get_object()
+        if not is_dataroom_collaborator_or_above(request.user, dfolder.dataroom):
+            raise PermissionDenied("You do not have permission to unlink folders in this dataroom.")
+
+        try:
+            updated = unlink_dataroom_folder(dfolder)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(updated)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def perform_destroy(self, instance):
         remove_dataroom_content(instance.dataroom, dataroom_doc_ids=[], dataroom_folder_ids=[instance.id])

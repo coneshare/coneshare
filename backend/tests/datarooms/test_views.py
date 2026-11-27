@@ -172,9 +172,9 @@ class TestDataroomViewSet:
 
         # The number of queries should remain constant regardless of document count.
         # Current expected queries:
-        # 1 (get folder + dataroom via select_related) + 1 (get children) + 1 (get documents)
-        # + 2 (for 2 ancestors) + 1 (check item-order rows for this scope) = 6
-        with django_assert_num_queries(6):
+        # 1 (get folder + dataroom + parent + source_folder via select_related) + 1 (get children)
+        # + 1 (get documents) + 1 (for remaining ancestor level1) + 1 (check item-order rows for this scope) = 5
+        with django_assert_num_queries(5):
             url = f'/api/v1/dataroom-folders/{target_folder.id}/'
             response = api_client.get(url)
             print(response.json()['ancestors'])
@@ -1149,21 +1149,9 @@ class TestDataroomViewSet:
         }, format="json")
         assert response_reorder_init.status_code == status.HTTP_200_OK
 
-        # 3. Create a library document, and add it to folder_dest using the add_content endpoint.
-        # The add_content endpoint will not create an order row if show_file_index is False.
-        dataroom.show_file_index = False
-        dataroom.save(update_fields=["show_file_index"])
-
+        # 3. Create an item directly without a DataroomItemOrder row to verify reorder tolerates missing order rows.
         doc2 = Document.objects.create(name="Doc 2", organization=organization, created_by=user)
-        url_add = f'/api/v1/datarooms/{dataroom.id}/add-content/'
-        response_add = api_client.post(url_add, {
-            "document_ids": [str(doc2.id)],
-            "destination_folder_id": str(folder_dest.id)
-        }, format="json")
-        assert response_add.status_code == status.HTTP_200_OK
-
-        # Find the created DataroomDocument.
-        ddoc2 = DataroomDocument.objects.get(dataroom=dataroom, document=doc2, folder=folder_dest)
+        ddoc2 = DataroomDocument.objects.create(dataroom=dataroom, document=doc2, name=doc2.name, folder=folder_dest)
 
         # Confirm there's no DataroomItemOrder record for ddoc2.
         assert not DataroomItemOrder.objects.filter(
@@ -1172,12 +1160,8 @@ class TestDataroomViewSet:
             dataroom_document=ddoc2
         ).exists()
 
-        # Turn show_file_index back to True.
-        dataroom.show_file_index = True
-        dataroom.save(update_fields=["show_file_index"])
-
         # 4. Attempt to reorder items inside folder_dest.
-        # This should succeed, but currently fails with 409.
+        # This should succeed, including items that lacked order rows.
         response_reorder = api_client.post(url_reorder, {
             "parent_id": str(folder_dest.id),
             "ordered_items": [
@@ -1186,6 +1170,107 @@ class TestDataroomViewSet:
             ],
         }, format="json")
         assert response_reorder.status_code == status.HTTP_200_OK
+
+    def test_add_content_and_create_folder_append_item_order_regardless_of_show_file_index(
+        self, api_client, dataroom, document, user, organization
+    ):
+        folder_dest = DataroomFolder.objects.create(dataroom=dataroom, name="Destination")
+        ddoc1 = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name, folder=folder_dest)
+
+        url_reorder = f'/api/v1/datarooms/{dataroom.id}/reorder-items/'
+        res_reorder = api_client.post(url_reorder, {
+            "parent_id": str(folder_dest.id),
+            "ordered_items": [{"type": "document", "id": str(ddoc1.id)}],
+        }, format="json")
+        assert res_reorder.status_code == status.HTTP_200_OK
+
+        dataroom.show_file_index = False
+        dataroom.save(update_fields=["show_file_index"])
+
+        doc2 = Document.objects.create(name="Doc 2", organization=organization, created_by=user)
+        res_add = api_client.post(f'/api/v1/datarooms/{dataroom.id}/add-content/', {
+            "document_ids": [str(doc2.id)],
+            "destination_folder_id": str(folder_dest.id),
+        }, format="json")
+        assert res_add.status_code == status.HTTP_200_OK
+
+        ddoc2 = DataroomDocument.objects.get(dataroom=dataroom, document=doc2, folder=folder_dest)
+        assert DataroomItemOrder.objects.filter(
+            dataroom=dataroom, parent_folder=folder_dest, dataroom_document=ddoc2, position=1
+        ).exists()
+
+        res_create_folder = api_client.post('/api/v1/dataroom-folders/', {
+            'name': 'Subfolder With Order',
+            'dataroom': str(dataroom.id),
+            'parent': str(folder_dest.id),
+        }, format='json')
+        assert res_create_folder.status_code == status.HTTP_201_CREATED
+        assert DataroomItemOrder.objects.filter(
+            dataroom=dataroom, parent_folder=folder_dest, folder_id=res_create_folder.data['id'], position=2
+        ).exists()
+
+    def test_item_order_append_paths_lock_dataroom_row(
+        self, api_client, dataroom, document, user, organization
+    ):
+        from unittest.mock import patch
+        from django.db import connection
+        from datarooms import views as dataroom_views
+
+        folder_dest = DataroomFolder.objects.create(dataroom=dataroom, name="OrderedDest")
+        other_folder = DataroomFolder.objects.create(dataroom=dataroom, name="OtherScope")
+        doc2 = Document.objects.create(name="MoveDoc.pdf", organization=organization, created_by=user)
+        ddoc1 = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name, folder=folder_dest)
+        ddoc_to_move = DataroomDocument.objects.create(dataroom=dataroom, document=doc2, name="MoveMe.pdf", folder=other_folder)
+
+        res_reorder = api_client.post(f'/api/v1/datarooms/{dataroom.id}/reorder-items/', {
+            "parent_id": str(folder_dest.id),
+            "ordered_items": [{"type": "document", "id": str(ddoc1.id)}],
+        }, format="json")
+        assert res_reorder.status_code == status.HTTP_200_OK
+
+        real_select_for_update = Dataroom.objects.select_for_update
+        real_append_item_order = dataroom_views.append_item_order
+        events = []
+
+        def tracked_select_for_update(*args, **kwargs):
+            assert connection.in_atomic_block
+            events.append('lock')
+            return real_select_for_update(*args, **kwargs)
+
+        def tracked_append_item_order(*args, **kwargs):
+            assert connection.in_atomic_block
+            events.append('append')
+            return real_append_item_order(*args, **kwargs)
+
+        with (
+            patch.object(Dataroom.objects, 'select_for_update', side_effect=tracked_select_for_update),
+            patch.object(dataroom_views, 'append_item_order', side_effect=tracked_append_item_order),
+        ):
+            events.clear()
+            r1 = api_client.post('/api/v1/dataroom-folders/', {
+                'name': 'Locked Create',
+                'dataroom': str(dataroom.id),
+                'parent': str(folder_dest.id),
+            }, format='json')
+            assert r1.status_code == status.HTTP_201_CREATED
+            assert events == ['lock', 'append']
+
+            events.clear()
+            r2 = api_client.post(f'/api/v1/datarooms/{dataroom.id}/ensure-paths/', {
+                'paths': ['Locked Ensure'],
+                'parent_folder_id': str(folder_dest.id),
+            }, format='json')
+            assert r2.status_code == status.HTTP_201_CREATED
+            assert events == ['lock', 'append']
+
+            events.clear()
+            r3 = api_client.post(f'/api/v1/datarooms/{dataroom.id}/move-content/', {
+                'dataroom_document_ids': [str(ddoc_to_move.id)],
+                'dataroom_folder_ids': [],
+                'destination_folder_id': str(folder_dest.id),
+            }, format='json')
+            assert r3.status_code == status.HTTP_200_OK
+            assert events == ['lock', 'append']
 
 
     def test_list_view_sessions_for_dataroom(self, api_client, user, dataroom, organization):
