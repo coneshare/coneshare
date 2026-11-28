@@ -8,32 +8,37 @@ from coneshare_mcp.client import ConeshareClient
 
 def register_admin_tools(mcp: FastMCP) -> None:
 
-    @mcp.tool()
+    @mcp.tool(tags={"admin", "read"})
     async def list_admin_users(
         ctx: Context,
         page: int = Field(default=1, ge=1, description="Page number"),
         page_size: int = Field(default=20, ge=1, le=100, description="Items per page (max 100)"),
         search: Optional[str] = Field(default=None, description="Optional search term by user name or email"),
     ) -> dict:
-        """[ADMIN ONLY] List all users in your organization with pagination and optional search filter."""
+        """[ADMIN ONLY] List users in your Coneshare organization with pagination and optional search filter."""
         client = ConeshareClient.from_ctx(ctx)
         return await client.list_admin_users(page=page, page_size=page_size, search=search)
 
-    @mcp.tool()
+    @mcp.tool(tags={"admin", "read"})
     async def get_admin_user_details(
         ctx: Context,
-        user_id: str = Field(description="ULID or UUID of target user"),
+        user_id: str = Field(
+            description="Organization user ULID or UUID (from list_admin_users)"
+        ),
     ) -> dict:
-        """[ADMIN ONLY] Retrieve detailed user profile including created share links, datarooms count, and total view session engagement."""
+        """[ADMIN ONLY] Retrieve detailed organization user profile, link count, datarooms count, and view engagement."""
         client = ConeshareClient.from_ctx(ctx)
         return await client.get_admin_user_details(user_id=user_id)
 
-    @mcp.tool()
+    @mcp.tool(tags={"admin", "read"})
     async def list_login_activities(
         ctx: Context,
         page: int = Field(default=1, ge=1, description="Page number"),
         page_size: int = Field(default=20, ge=1, le=100, description="Items per page (max 100)"),
-        user_id: Optional[str] = Field(default=None, description="Filter by user ULID or UUID"),
+        user_id: Optional[str] = Field(
+            default=None,
+            description="Optional organization user ULID or UUID (from list_admin_users)",
+        ),
     ) -> dict:
         """[ADMIN ONLY] List organization user login activity logs (IP addresses, user agents, timestamps, success status)."""
         client = ConeshareClient.from_ctx(ctx)

@@ -186,9 +186,18 @@ class TestDatarooms(BaseMCPTestCase):
 
         tool = await mcp.get_tool("remove_content_from_dataroom")
         with patch("coneshare_mcp.tools.datarooms.ConeshareClient.from_ctx", return_value=mock_client):
-            res = await tool.fn(ctx=mock_ctx, dataroom_id="dtr_100", document_ids=["doc_1"], folder_ids=None)
+            res = await tool.fn(
+                ctx=mock_ctx,
+                dataroom_id="dtr_100",
+                dataroom_document_ids=["ddoc_1"],
+                dataroom_folder_ids=None,
+            )
         self.assertTrue(res["success"])
-        mock_client.remove_content_from_dataroom.assert_awaited_once_with(dataroom_id="dtr_100", document_ids=["doc_1"], dataroom_folder_ids=None)
+        mock_client.remove_content_from_dataroom.assert_awaited_once_with(
+            dataroom_id="dtr_100",
+            dataroom_document_ids=["ddoc_1"],
+            dataroom_folder_ids=None,
+        )
 
     async def test_remove_content_from_dataroom_tool_empty_params_guard(self):
         mcp = FastMCP("test_mcp")
@@ -196,9 +205,24 @@ class TestDatarooms(BaseMCPTestCase):
 
         mock_ctx = MagicMock()
         tool = await mcp.get_tool("remove_content_from_dataroom")
-        res = await tool.fn(ctx=mock_ctx, dataroom_id="dtr_100", document_ids=None, folder_ids=None)
+        res = await tool.fn(
+            ctx=mock_ctx,
+            dataroom_id="dtr_100",
+            dataroom_document_ids=None,
+            dataroom_folder_ids=None,
+        )
         self.assertTrue(res.get("error"))
-        self.assertIn("At least one document_id or folder_id must be provided", res.get("message", ""))
+        self.assertIn("dataroom_document_id", res.get("message", ""))
+
+    async def test_remove_content_400_adds_id_origin_hint(self):
+        async def failing_request(self_client, method, path, params=None, json_data=None, files=None):
+            raise ValueError("Coneshare API Error (400): Invalid IDs")
+
+        with patch.object(ConeshareClient, "_request", new=failing_request):
+            client = ConeshareClient(api_key="cs_live_testkey123456789")
+            with self.assertRaises(ValueError) as ctx:
+                await client.remove_content_from_dataroom("dtr_100", dataroom_document_ids=["doc_wrong"])
+        self.assertIn("get_dataroom", str(ctx.exception))
 
     async def test_update_dataroom_tool_execution(self):
         mcp = FastMCP("test_mcp")

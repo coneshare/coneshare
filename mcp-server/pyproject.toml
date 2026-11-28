@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "coneshare-mcp"
-version = "0.1.0"
+version = "1.0.0"
 description = "Remote MCP Server for Coneshare workspace integration"
 readme = "README.md"
 authors = [

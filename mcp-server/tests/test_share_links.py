@@ -79,3 +79,31 @@ class TestShareLinks(BaseMCPTestCase):
             "allow_download": True,
             "receive_email_notification": True,
         })
+
+    async def test_create_share_link_requires_exactly_one_target(self):
+        mcp = FastMCP("test_mcp")
+        register_share_link_tools(mcp)
+        tool = await mcp.get_tool("create_share_link")
+        mock_ctx = MagicMock()
+
+        for kwargs in (
+            {"document_id": None, "dataroom_id": None},
+            {"document_id": "doc_1", "dataroom_id": "dtr_1"},
+        ):
+            with self.assertRaises(ValueError) as err_ctx:
+                await tool.fn(
+                    ctx=mock_ctx,
+                    name=None,
+                    password=None,
+                    expires_in_days=None,
+                    require_nda=None,
+                    nda_text=None,
+                    enable_watermark=None,
+                    watermark_text=None,
+                    allow_download=True,
+                    requires_email=None,
+                    requires_email_verification=None,
+                    receive_email_notification=True,
+                    **kwargs,
+                )
+            self.assertIn("exactly one", str(err_ctx.exception))

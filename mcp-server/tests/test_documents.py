@@ -228,7 +228,7 @@ class TestDocuments(BaseMCPTestCase):
             path=None,
         )
 
-    async def test_update_document_tool_execution(self):
+    async def test_update_document_metadata_tool_execution(self):
         mcp = FastMCP("test_mcp")
         register_document_tools(mcp)
 
@@ -236,11 +236,32 @@ class TestDocuments(BaseMCPTestCase):
         mock_client.update_document = AsyncMock(return_value={"id": "doc_123", "name": "new_name.pdf"})
         mock_ctx = MagicMock()
 
-        tool = await mcp.get_tool("update_document")
+        tool = await mcp.get_tool("update_document_metadata")
         with patch("coneshare_mcp.tools.documents.ConeshareClient.from_ctx", return_value=mock_client):
             res = await tool.fn(ctx=mock_ctx, document_id="doc_123", name="new_name.pdf", description=None)
         self.assertEqual(res["name"], "new_name.pdf")
         mock_client.update_document.assert_awaited_once_with(document_id="doc_123", name="new_name.pdf", description=None)
+
+    async def test_get_document_metadata_tool_execution(self):
+        mcp = FastMCP("test_mcp")
+        register_document_tools(mcp)
+
+        mock_client = MagicMock()
+        mock_client.get_document = AsyncMock(
+            return_value={
+                "id": "doc_123",
+                "name": "guide.md",
+                "next_step_hint": "Text document: call read_text_document(document_id=...) to load UTF-8 content into context.",
+            }
+        )
+        mock_ctx = MagicMock()
+
+        tool = await mcp.get_tool("get_document_metadata")
+        with patch("coneshare_mcp.tools.documents.ConeshareClient.from_ctx", return_value=mock_client):
+            res = await tool.fn(ctx=mock_ctx, document_id="doc_123")
+        self.assertEqual(res["id"], "doc_123")
+        self.assertIn("read_text_document", res["next_step_hint"])
+        mock_client.get_document.assert_awaited_once_with(document_id="doc_123")
 
     async def test_search_documents_tool_execution(self):
         mcp = FastMCP("test_mcp")
@@ -1386,5 +1407,124 @@ class TestDocuments(BaseMCPTestCase):
             max_chars=DEFAULT_TEXT_READ_CHARS,
         )
         mock_client.get_document_download_url.assert_awaited_once_with(document_id="doc_2")
+
+    async def test_get_document_adds_next_step_hints(self):
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            if path == "/documents/doc_md/":
+                return {"id": "doc_md", "name": "notes.md", "type": "markdown", "file_size": 512, "status": "ready"}
+            if path == "/documents/doc_big_md/":
+                return {
+                    "id": "doc_big_md",
+                    "name": "huge.md",
+                    "type": "markdown",
+                    "file_size": MAX_TEXT_READ_BYTES + 1,
+                    "status": "ready",
+                }
+            if path == "/documents/doc_pdf/":
+                return {"id": "doc_pdf", "name": "deck.pdf", "type": "pdf", "file_size": 1024, "status": "ready"}
+            return {"id": "doc_up", "name": "deck.pdf", "status": "uploading"}
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            client = ConeshareClient(api_key="cs_live_testkey123456789")
+            md_doc = await client.get_document("doc_md")
+            big_md = await client.get_document("doc_big_md")
+            pdf_doc = await client.get_document("doc_pdf")
+            up_doc = await client.get_document("doc_up")
+        finally:
+            ConeshareClient._request = old_request
+
+        self.assertIn("read_text_document", md_doc["next_step_hint"])
+        self.assertIn("get_document_download_url", big_md["next_step_hint"])
+        self.assertIn("get_document_download_url", pdf_doc["next_step_hint"])
+        self.assertIn("uploading", up_doc["next_step_hint"])
+
+    async def test_create_text_document_collision_adds_copy_note(self):
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            if path == "/uploads/document/request/":
+                return {"upload_url": "http://testserver/upload", "storage_key": "org_1/notes.md", "unique_name": "notes_u.md"}
+            if path == "/uploads/document/finalize/":
+                return {"id": "doc_copy", "name": "notes (2).md", "status": "ready"}
+            return {"error": True}
+
+        with (
+            patch.object(ConeshareClient, "_request", new=mock_request),
+            patch.object(ConeshareClient, "_upload_bytes", new=AsyncMock()),
+        ):
+            client = ConeshareClient(api_key="cs_live_testkey123456789")
+            res = await client.create_text_document(file_name="notes.md", content="# duplicate")
+        self.assertEqual(res["name"], "notes (2).md")
+        self.assertIn("update_text_document", res["note"])
+
+    async def test_create_text_document_non_collision_rename_omits_copy_note(self):
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            if path == "/uploads/document/request/":
+                return {"upload_url": "http://testserver/upload", "storage_key": "org_1/notes.md", "unique_name": "notes_u.md"}
+            if path == "/uploads/document/finalize/":
+                return {"id": "doc_norm", "name": "notes_normalized.md", "status": "ready"}
+            return {"error": True}
+
+        with (
+            patch.object(ConeshareClient, "_request", new=mock_request),
+            patch.object(ConeshareClient, "_upload_bytes", new=AsyncMock()),
+        ):
+            client = ConeshareClient(api_key="cs_live_testkey123456789")
+            res = await client.create_text_document(file_name="notes.md", content="# normalized")
+        self.assertEqual(res["name"], "notes_normalized.md")
+        self.assertNotIn("note", res)
+
+    async def test_create_text_document_unsupported_ext_collision_omits_update_text_note(self):
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            if path == "/uploads/document/request/":
+                return {"upload_url": "http://testserver/upload", "storage_key": "org_1/page.html", "unique_name": "page_u.html"}
+            if path == "/uploads/document/finalize/":
+                return {"id": "doc_html_copy", "name": "page (2).html", "status": "ready"}
+            return {"error": True}
+
+        with (
+            patch.object(ConeshareClient, "_request", new=mock_request),
+            patch.object(ConeshareClient, "_upload_bytes", new=AsyncMock()),
+        ):
+            client = ConeshareClient(api_key="cs_live_testkey123456789")
+            res = await client.create_text_document(file_name="page.html", content="<h1>hi</h1>")
+        self.assertEqual(res["name"], "page (2).html")
+        self.assertNotIn("note", res)
+
+    async def test_list_folders_client_and_tool_execution(self):
+        recorded_paths = []
+
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            recorded_paths.append((method, path))
+            return {
+                "current_folder": {"id": "fld_parent", "name": "Finance", "parent": "fld_root"},
+                "sub_folders": [{"id": "fld_child", "name": "Q4", "parent": "fld_parent", "extra": "ignored"}],
+                "documents": [{"id": "doc_1"}, {"id": "doc_2"}],
+            }
+
+        with patch.object(ConeshareClient, "_request", new=mock_request):
+            client = ConeshareClient(api_key="cs_live_testkey123456789")
+            res_root = await client.list_folders()
+            res_child = await client.list_folders(parent_folder_id="fld_parent")
+            with self.assertRaises(ValueError):
+                await client.list_folders(parent_folder_id="")
+            with self.assertRaises(ValueError):
+                await client.list_folders(parent_folder_id="../escape")
+
+        self.assertEqual(recorded_paths, [("GET", "/folders/"), ("GET", "/folders/fld_parent/")])
+        self.assertEqual(res_root["total_folders"], 1)
+        self.assertEqual(res_child["current_folder"]["name"], "Finance")
+        self.assertEqual(res_child["sub_folders"], [{"id": "fld_child", "name": "Q4", "parent": "fld_parent"}])
+        self.assertEqual(res_child["documents_count"], 2)
+
+        mcp = FastMCP("test_mcp")
+        register_document_tools(mcp)
+        mock_client = MagicMock()
+        mock_client.list_folders = AsyncMock(return_value={"current_folder": None, "sub_folders": [], "total_folders": 0, "documents_count": 0})
+        tool = await mcp.get_tool("list_folders")
+        with patch("coneshare_mcp.tools.documents.ConeshareClient.from_ctx", return_value=mock_client):
+            tool_res = await tool.fn(ctx=MagicMock(), parent_folder_id=None)
+        self.assertEqual(tool_res["total_folders"], 0)
+        mock_client.list_folders.assert_awaited_once_with(parent_folder_id=None)
 
 
