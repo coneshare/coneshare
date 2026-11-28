@@ -1793,5 +1793,247 @@ describe('DocumentsPage', () => {
       });
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
+
+    it('adds folders and documents from SelectionActionBar and clears selection only on bulk success', async () => {
+      const user = userEvent.setup();
+      api.getRootFolderContents.mockResolvedValue({
+        data: {
+          current_folder: null,
+          sub_folders: [
+            { id: 'f_add', name: 'Financials', updated_at: '2026-11-24T10:00:00Z', synced_datarooms: [] },
+          ],
+          documents: [
+            { id: 'doc_add', name: 'Deck.pdf', type: 'pdf', file_size: 1024, updated_at: '2026-11-24T10:00:00Z' },
+          ],
+        },
+      });
+      api.getDatarooms.mockResolvedValue({
+        data: [
+          { id: 'dr_1', name: 'Investor Room' },
+          { id: 'dr_2', name: 'Advisor Room' },
+        ],
+      });
+      api.addContentToDataroom.mockResolvedValue({ data: { detail: 'Content added successfully.' } });
+
+      renderComponent('/documents');
+
+      const folderRow = (await screen.findByText('Financials')).closest('[data-testid^="draggable-item-"]');
+      const docRow = screen.getByText('Deck.pdf').closest('[data-testid^="draggable-item-"]');
+
+      await user.click(folderRow);
+      await user.keyboard('{Meta>}');
+      await user.click(docRow);
+      await user.keyboard('{/Meta}');
+
+      const addButton = await screen.findByRole('button', { name: 'Add to Datarooms' });
+      await user.click(addButton);
+
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('Add 2 items to Datarooms')).toBeInTheDocument();
+      expect(
+        within(dialog).getByText('Sync applies to selected folders only. Selected documents stay live-linked.')
+      ).toBeInTheDocument();
+
+      await user.click(await within(dialog).findByRole('checkbox', { name: /Investor Room/ }));
+      await user.click(within(dialog).getByRole('checkbox', { name: 'Keep selected folders synced with Documents' }));
+      await user.click(within(dialog).getByRole('button', { name: 'Add to Datarooms' }));
+
+      await waitFor(() => {
+        expect(api.addContentToDataroom).toHaveBeenCalledWith(
+          'dr_1',
+          { folder_ids: ['f_add'], document_ids: ['doc_add'], sync_folders: true },
+          { skipErrorToast: true }
+        );
+      });
+
+      // Bulk success clears selection (SelectionActionBar disappears) and refreshes list without closing error
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      await waitFor(() => {
+        expect(screen.queryByText('2 selected')).not.toBeInTheDocument();
+      });
+      expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
+    });
+
+    it('preserves bulk selection when adding via row menu and preserves dialog state across partial-failure refresh', async () => {
+      const user = userEvent.setup();
+      let resolveRefresh;
+      const refreshPromise = new Promise((resolve) => {
+        resolveRefresh = resolve;
+      });
+
+      api.getRootFolderContents
+        .mockResolvedValueOnce({
+          data: {
+            current_folder: null,
+            sub_folders: [
+              { id: 'f_other', name: 'Other Folder', updated_at: '2026-11-24T10:00:00Z', synced_datarooms: [] },
+            ],
+            documents: [
+              { id: 'doc_row', name: 'Pitch.pdf', type: 'pdf', file_size: 1024, updated_at: '2026-11-24T10:00:00Z' },
+            ],
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            current_folder: null,
+            sub_folders: [
+              { id: 'f_other', name: 'Other Folder', updated_at: '2026-11-24T10:00:00Z', synced_datarooms: [] },
+            ],
+            documents: [
+              { id: 'doc_row', name: 'Pitch.pdf', type: 'pdf', file_size: 1024, updated_at: '2026-11-24T10:00:00Z' },
+            ],
+          },
+        })
+        .mockReturnValueOnce(refreshPromise);
+
+      api.getDatarooms.mockResolvedValue({
+        data: [
+          { id: 'dr_1', name: 'Series A Room' },
+          { id: 'dr_2', name: 'Series B Room' },
+        ],
+      });
+      // First row call succeeds; second call simulates partial failure across 2 datarooms
+      api.addContentToDataroom
+        .mockResolvedValueOnce({ data: { detail: 'ok' } })
+        .mockResolvedValueOnce({ data: { detail: 'ok' } })
+        .mockRejectedValueOnce({
+          response: { status: 400, data: { detail: 'Adding these items would exceed the Dataroom storage limit.' } },
+        });
+
+      renderComponent('/documents');
+
+      // Select Pitch.pdf first, then trigger row menu on Other Folder -> Add to Datarooms
+      const docRow = (await screen.findByText('Pitch.pdf')).closest('[data-testid^="draggable-item-"]');
+      await user.click(docRow);
+      expect(await screen.findByText('1 selected')).toBeInTheDocument();
+
+      const folderRow = screen.getByText('Other Folder').closest('[data-testid^="draggable-item-"]');
+      await user.click(within(folderRow).getByRole('button', { name: /actions for/i }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Add to Datarooms' }));
+
+      let dialog = await screen.findByRole('dialog');
+      await user.click(await within(dialog).findByRole('checkbox', { name: /Series A Room/ }));
+      await user.click(within(dialog).getByRole('button', { name: 'Add to Datarooms' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      // Row-level add MUST NOT wipe unrelated bulk selection
+      expect(screen.getByText('1 selected')).toBeInTheDocument();
+
+      // Now open row menu on Other Folder again and trigger partial failure across 2 datarooms
+      const refreshedFolderRow = (await screen.findByText('Other Folder')).closest('[data-testid^="draggable-item-"]');
+      await user.click(within(refreshedFolderRow).getByRole('button', { name: /actions for/i }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Add to Datarooms' }));
+
+      dialog = await screen.findByRole('dialog');
+      await user.click(await within(dialog).findByRole('checkbox', { name: /Series A Room/ }));
+      await user.click(within(dialog).getByRole('checkbox', { name: /Series B Room/ }));
+      await user.click(within(dialog).getByRole('checkbox', { name: 'Keep selected folders synced with Documents' }));
+      await user.click(within(dialog).getByRole('button', { name: 'Add to Datarooms' }));
+
+      // Mid-flight while refresh clears folders state: dialog, Added badge, and alert stay intact
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('Series B Room:');
+      expect(within(dialog).getByText('Added')).toBeInTheDocument();
+
+      resolveRefresh({
+        data: {
+          current_folder: null,
+          sub_folders: [
+            {
+              id: 'f_other',
+              name: 'Other Folder',
+              updated_at: '2026-11-24T10:00:00Z',
+              synced_datarooms: [{ dataroom_id: 'dr_1', dataroom_folder_path: '/Other Folder' }],
+            },
+          ],
+          documents: [
+            { id: 'doc_row', name: 'Pitch.pdf', type: 'pdf', file_size: 1024, updated_at: '2026-11-24T10:00:00Z' },
+          ],
+        },
+      });
+
+      // After refresh resolves: synced hint enriches in place while Added & alert persist
+      await waitFor(() => {
+        expect(within(dialog).getByText('Already synced at /Other Folder')).toBeInTheDocument();
+      });
+      expect(within(dialog).getByText('Added')).toBeInTheDocument();
+      expect(within(dialog).getByRole('alert')).toHaveTextContent('Series B Room:');
+    });
+
+    it('disables SelectionActionBar Add to Datarooms while list refresh is pending after row-level add', async () => {
+      const user = userEvent.setup();
+      let resolveRefresh;
+      const refreshPromise = new Promise((resolve) => {
+        resolveRefresh = resolve;
+      });
+
+      api.getRootFolderContents
+        .mockResolvedValueOnce({
+          data: {
+            current_folder: null,
+            sub_folders: [
+              { id: 'f_row', name: 'Row Folder', updated_at: '2026-11-24T10:00:00Z', synced_datarooms: [] },
+            ],
+            documents: [
+              { id: 'doc_sel', name: 'Selected.pdf', type: 'pdf', file_size: 1024, updated_at: '2026-11-24T10:00:00Z' },
+            ],
+          },
+        })
+        .mockReturnValueOnce(refreshPromise);
+
+      api.getDatarooms.mockResolvedValue({
+        data: [{ id: 'dr_1', name: 'Series A Room' }],
+      });
+      api.addContentToDataroom.mockResolvedValue({ data: { detail: 'ok' } });
+
+      renderComponent('/documents');
+
+      // Select Selected.pdf, then trigger a row-level add on Row Folder
+      const docRow = (await screen.findByText('Selected.pdf')).closest('[data-testid^="draggable-item-"]');
+      await user.click(docRow);
+      expect(await screen.findByText('1 selected')).toBeInTheDocument();
+
+      const folderRow = screen.getByText('Row Folder').closest('[data-testid^="draggable-item-"]');
+      await user.click(within(folderRow).getByRole('button', { name: /actions for/i }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Add to Datarooms' }));
+
+      const rowDialog = await screen.findByRole('dialog');
+      await user.click(await within(rowDialog).findByRole('checkbox', { name: /Series A Room/ }));
+      await user.click(within(rowDialog).getByRole('button', { name: 'Add to Datarooms' }));
+
+      // Row dialog closes and background fetchData() is still pending
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+
+      const bulkAddBtn = screen.getByRole('button', { name: 'Add to Datarooms' });
+      expect(bulkAddBtn).toBeDisabled();
+      await user.click(bulkAddBtn);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+      // Finish refresh; bulk Add to Datarooms becomes enabled and opens with Selected.pdf
+      resolveRefresh({
+        data: {
+          current_folder: null,
+          sub_folders: [
+            { id: 'f_row', name: 'Row Folder', updated_at: '2026-11-24T10:00:00Z', synced_datarooms: [] },
+          ],
+          documents: [
+            { id: 'doc_sel', name: 'Selected.pdf', type: 'pdf', file_size: 1024, updated_at: '2026-11-24T10:00:00Z' },
+          ],
+        },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Add to Datarooms' })).toBeEnabled();
+      });
+      await user.click(screen.getByRole('button', { name: 'Add to Datarooms' }));
+
+      const bulkDialog = await screen.findByRole('dialog');
+      expect(within(bulkDialog).getByText('Add "Selected.pdf" to Datarooms')).toBeInTheDocument();
+    });
   });
 });

@@ -7,12 +7,15 @@ import '../../../i18n';
 
 // Mock child components and hooks to isolate the DocumentsList component
 vi.mock("../../../components/documents/DraggableItem", () => ({
-  DraggableItem: ({ item, onRename, onDelete, showIndex, itemIndex }) => (
+  DraggableItem: ({ item, onRename, onDelete, onAddToDatarooms, showIndex, itemIndex }) => (
     <div>
       {showIndex && <span data-testid={`row-index-${item.id}`}>{itemIndex}</span>}
       <span>{item.name}</span>
       <button onClick={() => onRename(item)}>Rename {item.type}</button>
       <button onClick={() => onDelete(item)}>Delete {item.type}</button>
+      {onAddToDatarooms && (
+        <button onClick={() => onAddToDatarooms(item)}>AddToDatarooms {item.type}</button>
+      )}
     </div>
   ),
 }));
@@ -359,6 +362,44 @@ describe("DocumentsList Drag and Drop folder parsing", () => {
     const parsedFiles = await mockCapturedOptions.getFilesFromEvent(mockEvent);
     expect(parsedFiles).toHaveLength(1);
     expect(parsedFiles[0].name).toBe("input.txt");
+  });
+
+  it("forwards onAddToDatarooms to items only when provided", async () => {
+    const user = userEvent.setup();
+    const onAddToDatarooms = vi.fn();
+    const folderItem = { id: "folder1", name: "Test Folder 1", type: "folder" };
+    const docItem = { id: "doc1", name: "Test Document 1", type: "document" };
+    const items = [folderItem, docItem];
+
+    const { rerender } = render(
+      <DocumentsList
+        allItems={items}
+        loading={false}
+        onDataRefresh={() => {}}
+        onFilesDrop={() => {}}
+        sortConfig={{ key: "name", direction: "ascending" }}
+        onAddToDatarooms={onAddToDatarooms}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "AddToDatarooms folder" }));
+    expect(onAddToDatarooms).toHaveBeenCalledWith(folderItem);
+
+    await user.click(screen.getByRole("button", { name: "AddToDatarooms document" }));
+    expect(onAddToDatarooms).toHaveBeenCalledWith(docItem);
+
+    rerender(
+      <DocumentsList
+        allItems={items}
+        loading={false}
+        onDataRefresh={() => {}}
+        onFilesDrop={() => {}}
+        sortConfig={{ key: "name", direction: "ascending" }}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "AddToDatarooms folder" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "AddToDatarooms document" })).not.toBeInTheDocument();
   });
 });
 

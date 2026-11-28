@@ -621,7 +621,8 @@ export const importCloudVersion = (documentId, { connectionId, fileId, fileName,
   });
 
 // Datarooms
-export const getDatarooms = (params) => api.get('/datarooms/', { params });
+export const getDatarooms = (params, config = {}) =>
+  api.get('/datarooms/', { params, ...config });
 export const searchDataroomContent = (dataroomId, query) => api.get(`/datarooms/${dataroomId}/search/`, { params: { q: query } });
 export const getDataroom = (id, params) => api.get(`/datarooms/${id}/`, { params });
 export const createDataroom = (data) => api.post('/datarooms/', data);
@@ -714,7 +715,8 @@ export const reorderDataroomBannerImages = (dataroomId, items) =>
   api.post(`/datarooms/${dataroomId}/banner-images/reorder/`, items);
 export const deleteDataroom = (id) => api.delete(`/datarooms/${id}/`);
 export const upgradeDataroomStorage = (id) => api.post(`/datarooms/${id}/upgrade-storage/`);
-export const addContentToDataroom = (id, data) => api.post(`/datarooms/${id}/add-content/`, data);
+export const addContentToDataroom = (id, data, config = {}) =>
+  api.post(`/datarooms/${id}/add-content/`, data, config);
 export const removeContentFromDataroom = (id, data) => api.post(`/datarooms/${id}/remove-content/`, data);
 export const moveDataroomContent = (id, data) => api.post(`/datarooms/${id}/move-content/`, data);
 export const reorderDataroomItems = (id, data) => api.post(`/datarooms/${id}/reorder-items/`, data);

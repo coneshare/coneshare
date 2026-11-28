@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Trash2, FolderInput } from "lucide-react";
+import { Trash2, FolderInput, FolderPlus } from "lucide-react";
 import { Button } from "../ui/Button";
 
 export function SelectionActionBar({
@@ -8,6 +8,8 @@ export function SelectionActionBar({
   onClearSelection,
   onDelete,
   onMove,
+  onAddToDatarooms,
+  addToDataroomsDisabled = false,
   deleteText,
 }) {
   const { t } = useTranslation();
@@ -24,6 +26,17 @@ export function SelectionActionBar({
         </Button>
       </div>
       <div className="flex items-center gap-x-2">
+        {onAddToDatarooms && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onAddToDatarooms}
+            disabled={addToDataroomsDisabled}
+          >
+            <FolderPlus className="mr-2 h-4 w-4" aria-hidden="true" />
+            {t('documents.addToDatarooms')}
+          </Button>
+        )}
         <Button variant="outline" size="sm" onClick={onMove}>
           <FolderInput className="mr-2 h-4 w-4" />
           {t('documents.move')}

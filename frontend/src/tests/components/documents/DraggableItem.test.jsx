@@ -365,4 +365,79 @@ describe("DraggableItem", () => {
     );
     expect(screen.queryByRole("img", { name: "Managed by folder sync" })).not.toBeInTheDocument();
   });
+
+  it("renders Add to Datarooms in ActionsDropdown for folders and documents only when onAddToDatarooms is passed", async () => {
+    const user = userEvent.setup();
+    const onAddToDatarooms = vi.fn();
+    const folderItem = {
+      id: "folder_add_1",
+      name: "Board Folder",
+      updated_at: new Date().toISOString(),
+    };
+    const docItem = {
+      id: "doc_add_1",
+      name: "Summary.pdf",
+      updated_at: new Date().toISOString(),
+    };
+
+    const { rerender } = renderDraggableItem({
+      id: folderItem.id,
+      type: "folder",
+      item: folderItem,
+      onAddToDatarooms,
+    });
+
+    await user.click(screen.getByLabelText("Actions for Board Folder"));
+    const addFolderItem = await screen.findByRole("menuitem", { name: "Add to Datarooms" });
+    await user.click(addFolderItem);
+    expect(onAddToDatarooms).toHaveBeenCalledWith(folderItem);
+
+    rerender(
+      <MemoryRouter>
+        <TooltipProvider>
+          <DndContext>
+            <DraggableItem
+              id={docItem.id}
+              item={docItem}
+              type="document"
+              isSelected={false}
+              onSelect={vi.fn()}
+              onRename={vi.fn()}
+              onDelete={vi.fn()}
+              onToggleStar={vi.fn()}
+              onAddToDatarooms={onAddToDatarooms}
+            />
+          </DndContext>
+        </TooltipProvider>
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByLabelText("Actions for Summary.pdf"));
+    const addDocItem = await screen.findByRole("menuitem", { name: "Add to Datarooms" });
+    await user.click(addDocItem);
+    expect(onAddToDatarooms).toHaveBeenCalledWith(docItem);
+
+    // Omitted when onAddToDatarooms is not provided (e.g. inside DataroomPage)
+    rerender(
+      <MemoryRouter>
+        <TooltipProvider>
+          <DndContext>
+            <DraggableItem
+              id={folderItem.id}
+              item={folderItem}
+              type="folder"
+              isSelected={false}
+              onSelect={vi.fn()}
+              onRename={vi.fn()}
+              onDelete={vi.fn()}
+              onToggleStar={vi.fn()}
+            />
+          </DndContext>
+        </TooltipProvider>
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByLabelText("Actions for Board Folder"));
+    expect(screen.queryByRole("menuitem", { name: "Add to Datarooms" })).not.toBeInTheDocument();
+  });
 });

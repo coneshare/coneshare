@@ -10,6 +10,8 @@ import {
   getPublicQnaSummary,
   getPublicQnaThreads,
   getShareLinkViewData,
+  getDatarooms,
+  addContentToDataroom,
   syncFolderToDatarooms,
   updateOwnerQnaThreadStatus,
   downloadDataroomFolder,
@@ -651,6 +653,47 @@ describe("API Service Interceptors", () => {
 
       await expect(
         syncFolderToDatarooms("folder-1", { dataroom_folder_ids: ["df-1"] })
+      ).rejects.toBe(originalError);
+
+      expect(mockAdapter).toHaveBeenCalledWith(
+        expect.objectContaining({ skipErrorToast: true })
+      );
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it("forwards config options including skipErrorToast in getDatarooms", async () => {
+      const originalError = {
+        response: { status: 500, data: { detail: "Server error" } },
+        config: { url: "/datarooms/", skipErrorToast: true },
+      };
+      mockAdapter.mockRejectedValue(originalError);
+
+      await expect(
+        getDatarooms(undefined, { skipErrorToast: true })
+      ).rejects.toBe(originalError);
+
+      expect(mockAdapter).toHaveBeenCalledWith(
+        expect.objectContaining({ skipErrorToast: true })
+      );
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it("forwards config options including skipErrorToast in addContentToDataroom", async () => {
+      const originalError = {
+        response: {
+          status: 400,
+          data: { detail: "Adding these items would exceed the Dataroom storage limit." },
+        },
+        config: { url: "/datarooms/dr-1/add-content/", skipErrorToast: true },
+      };
+      mockAdapter.mockRejectedValue(originalError);
+
+      await expect(
+        addContentToDataroom(
+          "dr-1",
+          { folder_ids: ["folder-1"], document_ids: [], sync_folders: false },
+          { skipErrorToast: true }
+        )
       ).rejects.toBe(originalError);
 
       expect(mockAdapter).toHaveBeenCalledWith(

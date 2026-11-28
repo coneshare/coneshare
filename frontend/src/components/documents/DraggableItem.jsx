@@ -26,6 +26,7 @@ export function DraggableItem({
   onDelete,
   onShare,
   onRequestFiles,
+  onAddToDatarooms,
   onSyncDatarooms,
   onUnlink,
   onToggleStar,
@@ -339,6 +340,7 @@ export function DraggableItem({
               onDelete={onDelete}
               onShare={onShare}
               onRequestFiles={onRequestFiles}
+              onAddToDatarooms={onAddToDatarooms}
               onSyncDatarooms={onSyncDatarooms}
               onUnlink={onUnlink}
               onDownload={onDownload}

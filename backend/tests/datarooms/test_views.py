@@ -662,27 +662,130 @@ class TestDataroomViewSet:
         ddoc = DataroomDocument.objects.get(dataroom=dataroom, document=document, folder=dataroom_folder)
         assert ddoc.name == document.name
 
-    def test_add_document_with_name_conflict_is_renamed(self, api_client, dataroom, document):
+    def test_add_document_with_name_conflict_is_renamed(self, api_client, dataroom, document, user, organization):
         """
-        Test adding a document to a dataroom folder where a document with the
+        Test adding a different document to a dataroom folder where a document with the
         same name already exists results in renaming.
         """
-        # 1. Add the document once.
-        url = f'/api/v1/datarooms/{dataroom.id}/add-content/'
-        data = {'document_ids': [str(document.id)]}
-        response1 = api_client.post(url, data)
-        assert response1.status_code == status.HTTP_200_OK
-        assert DataroomDocument.objects.filter(name=document.name).count() == 1
+        root_folder = Folder.objects.get_root_for_org(organization)
+        other_folder = Folder.objects.create(
+            name="Other Folder", parent=root_folder, organization=organization, created_by=user
+        )
+        duplicate_name_doc = Document.objects.create(
+            name=document.name,
+            folder=other_folder,
+            organization=organization,
+            created_by=user,
+            file_size=1024,
+        )
 
-        # 2. Add the same document to the same location again.
-        response2 = api_client.post(url, data)
+        # 1. Add the first document.
+        url = f'/api/v1/datarooms/{dataroom.id}/add-content/'
+        response1 = api_client.post(url, {'document_ids': [str(document.id)]})
+        assert response1.status_code == status.HTTP_200_OK
+        assert DataroomDocument.objects.filter(dataroom=dataroom, name=document.name).count() == 1
+
+        # 2. Add a distinct document with the same name to the same location.
+        response2 = api_client.post(url, {'document_ids': [str(duplicate_name_doc.id)]})
         assert response2.status_code == status.HTTP_200_OK
 
-        # 3. Verify there are now two DataroomDocument objects and one is renamed.
-        assert DataroomDocument.objects.filter(document=document).count() == 2
+        # 3. Verify both documents exist and the second one is renamed.
+        assert DataroomDocument.objects.filter(dataroom=dataroom).count() == 2
         base, ext = os.path.splitext(document.name)
         new_name = f"{base} (2){ext}"
-        assert DataroomDocument.objects.filter(name=new_name).exists()
+        assert DataroomDocument.objects.filter(dataroom=dataroom, document=duplicate_name_doc, name=new_name).exists()
+
+    def test_readding_same_document_to_same_scope_is_idempotent(self, api_client, dataroom, document):
+        """
+        Re-adding the exact same Document to the same (dataroom, destination_folder) scope
+        skips duplicate creation at both root and subfolder instead of cloning or throwing 500.
+        """
+        from datarooms.models import DataroomItemOrder
+
+        dest_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Dest")
+        url = f'/api/v1/datarooms/{dataroom.id}/add-content/'
+
+        # Root scope: first add succeeds, second add skips without creating "(2)".
+        assert api_client.post(url, {'document_ids': [str(document.id)]}).status_code == status.HTTP_200_OK
+        root_ddoc = DataroomDocument.objects.get(dataroom=dataroom, document=document, folder=None)
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=None,
+            item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
+            dataroom_document=root_ddoc,
+            position=0,
+        )
+
+        res_root_again = api_client.post(url, {'document_ids': [str(document.id)]})
+        assert res_root_again.status_code == status.HTTP_200_OK
+        assert DataroomDocument.objects.filter(dataroom=dataroom, document=document, folder=None).count() == 1
+        assert DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=None).count() == 1
+
+        # Subfolder scope: first add succeeds, second add returns 200 (not IntegrityError -> 500).
+        sub_payload = {'document_ids': [str(document.id)], 'destination_folder_id': str(dest_folder.id)}
+        assert api_client.post(url, sub_payload).status_code == status.HTTP_200_OK
+        res_sub_again = api_client.post(url, sub_payload)
+        assert res_sub_again.status_code == status.HTTP_200_OK
+        assert DataroomDocument.objects.filter(dataroom=dataroom, document=document, folder=dest_folder).count() == 1
+
+    def test_add_folder_without_sync_deduplicates_conflicting_folder_name(
+        self, api_client, dataroom, user, organization
+    ):
+        """Adding an unsynced folder to a scope that already has a same-named folder renames cleanly."""
+        root_folder = Folder.objects.get_root_for_org(organization)
+        source_folder = Folder.objects.create(
+            name="Legal", created_by=user, organization=organization, parent=root_folder
+        )
+        DataroomFolder.objects.create(dataroom=dataroom, name="Legal", created_by=user)
+
+        url = f'/api/v1/datarooms/{dataroom.id}/add-content/'
+        response = api_client.post(
+            url,
+            {'folder_ids': [str(source_folder.id)], 'sync_folders': False},
+            format='json',
+        )
+        assert response.status_code == status.HTTP_200_OK
+        root_names = list(
+            DataroomFolder.objects.filter(dataroom=dataroom, parent=None)
+            .order_by('name')
+            .values_list('name', flat=True)
+        )
+        assert root_names == ["Legal", "Legal (2)"]
+
+    def test_add_content_deduplicates_request_ids_and_skips_existing_docs_for_quota(
+        self, api_client, dataroom, user, organization
+    ):
+        """Repeated IDs in one request don't trigger 403 and existing docs don't break mixed payloads under quota."""
+        dataroom.storage_quota_mb = 10
+        dataroom.save(update_fields=['storage_quota_mb'])
+
+        existing_doc = Document.objects.create(
+            name="Existing.pdf", organization=organization, created_by=user, file_size=6 * 1024 * 1024
+        )
+        DataroomDocument.objects.create(dataroom=dataroom, document=existing_doc, name=existing_doc.name)
+
+        new_doc = Document.objects.create(
+            name="New.pdf", organization=organization, created_by=user, file_size=3 * 1024 * 1024
+        )
+        root_folder = Folder.objects.get_root_for_org(organization)
+        source_folder = Folder.objects.create(
+            name="Sub", created_by=user, organization=organization, parent=root_folder
+        )
+
+        url = f'/api/v1/datarooms/{dataroom.id}/add-content/'
+        response = api_client.post(
+            url,
+            {
+                'document_ids': [str(existing_doc.id), str(existing_doc.id), str(new_doc.id)],
+                'folder_ids': [str(source_folder.id), str(source_folder.id)],
+                'sync_folders': False,
+            },
+            format='json',
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert DataroomDocument.objects.filter(dataroom=dataroom, document=existing_doc).count() == 1
+        assert DataroomDocument.objects.filter(dataroom=dataroom, document=new_doc).count() == 1
+        assert DataroomFolder.objects.filter(dataroom=dataroom, name="Sub").count() == 1
 
     def test_add_same_document_to_multiple_locations(self, api_client, dataroom, document):
         """
