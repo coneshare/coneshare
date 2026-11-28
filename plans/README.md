@@ -15,6 +15,7 @@ These are pending implementation or active feature proposals:
 | **Share Links** | [sharelink_email_allowlist_plan.md](todo/sharelink_email_allowlist_plan.md) | Email & domain wildcard allowlist (`anyone` / `allowlist`) for ShareLinks (Issue #368) |
 | **eSign** | [native_esignature_phase1_and_phase2_plan.md](todo/native_esignature_phase1_and_phase2_plan.md) | Native eSignature (Phase 1 PDF NDA Gatekeeper & Phase 2 Full Document eSign, Field Placement Editor, Multi-Signer State Machine & VDR Vault Archiving) |
 | **MCP** | [cli_skills_plan.md](todo/cli_skills_plan.md) | Coneshare CLI (`@coneshare/cli`) terminal tool and Agent Skill manifest (`SKILL.md`) |
+| **MCP** | [mcp_toolsets_and_instructions_plan.md](todo/mcp_toolsets_and_instructions_plan.md) | Major-version MCP cleanup: tool/param renames, `list_folders`, BM25-clean docstrings, self-teaching hints, per-request `?toolsets=` (`admin` opt-in & `core` slim preset), auth pruning, `SKILL.md` v2 & portal sync |
 | **MCP** | [realtime_mcp_events_plan.md](todo/realtime_mcp_events_plan.md) | Real-time workspace event subscriptions over Remote MCP SSE stream without polling |
 
 ---

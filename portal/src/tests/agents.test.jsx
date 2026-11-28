@@ -27,7 +27,7 @@ vi.mock('next/image', () => ({
 }));
 
 describe('/agents page & components', () => {
-  it('renders simplified hero, screenshot showcase, video walkthrough, and 29 tools', () => {
+  it('renders simplified hero, screenshot showcase, video walkthrough, and 35 tools', () => {
     render(<AgentsPage />);
 
     expect(
@@ -51,7 +51,7 @@ describe('/agents page & components', () => {
         name: new RegExp(`${TOTAL_MCP_TOOLS} tools across documents, Data Rooms, and links`, 'i'),
       })
     ).toBeInTheDocument();
-    expect(TOTAL_MCP_TOOLS).toBe(29);
+    expect(TOTAL_MCP_TOOLS).toBe(35);
     expect(screen.queryByText(/Live Agent Execution Simulator/i)).not.toBeInTheDocument();
   });
 

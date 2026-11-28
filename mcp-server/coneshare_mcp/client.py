@@ -310,9 +310,26 @@ class ConeshareClient:
             return res
         return self._paginate(res, page, page_size)
 
+    @classmethod
+    def _build_document_next_step_hint(cls, doc: dict[str, Any]) -> str:
+        if doc.get("status") == "uploading":
+            return "Document is still uploading; retry shortly before reading or downloading."
+        raw_size = doc.get("file_size")
+        oversized = isinstance(raw_size, int) and not isinstance(raw_size, bool) and raw_size > MAX_TEXT_READ_BYTES
+        if not oversized:
+            try:
+                cls._resolve_readable_text_type(doc)
+                return "Text document: call read_text_document(document_id=...) to load UTF-8 content into context."
+            except ValueError:
+                pass
+        return "Binary or large file: call get_document_download_url(document_id=...) for a temporary signed download URL."
+
     async def get_document(self, document_id: str) -> dict[str, Any]:
         doc_id = _validate_resource_id(document_id, "document_id")
-        return await self._request("GET", f"/documents/{doc_id}/")
+        res = await self._request("GET", f"/documents/{doc_id}/")
+        if isinstance(res, dict) and not res.get("error"):
+            return {**res, "next_step_hint": self._build_document_next_step_hint(res)}
+        return res
 
     async def search_documents(
         self,
@@ -565,7 +582,25 @@ class ConeshareClient:
             content_type=resolved_content_type,
             path=finalize_path,
         )
-        return await self._apply_optional_description(doc, description)
+        res = await self._apply_optional_description(doc, description)
+        if isinstance(res, dict) and not res.get("error"):
+            actual_name = str(res.get("name") or "").strip()
+            stem, ext = os.path.splitext(clean_name)
+            collision_pattern = re.compile(rf"^{re.escape(stem)} \(\d+\){re.escape(ext)}$")
+            if (
+                actual_name
+                and collision_pattern.match(actual_name)
+                and ext.lower() in TEXT_CONTENT_TYPE_BY_EXTENSION
+            ):
+                return {
+                    **res,
+                    "note": (
+                        f"A document named '{clean_name}' already existed, so a separate copy "
+                        f"'{actual_name}' was created. To replace an existing document in place "
+                        "without changing share links, call update_text_document on its document_id."
+                    ),
+                }
+        return res
 
     async def update_text_document(
         self,
@@ -759,6 +794,56 @@ class ConeshareClient:
             "download_url": str(download_url),
         }
 
+    @staticmethod
+    def _with_api_error_hint(
+        exc: ValueError,
+        hint: str,
+        *,
+        match_substrings: tuple[str, ...] = ("(400)", "(404)"),
+    ) -> ValueError:
+        msg = str(exc)
+        if any(token in msg for token in match_substrings):
+            return ValueError(f"{msg} {hint}")
+        return exc
+
+    async def list_folders(self, parent_folder_id: Optional[str] = None) -> dict[str, Any]:
+        endpoint = (
+            f"/folders/{_validate_resource_id(parent_folder_id, 'parent_folder_id')}/"
+            if parent_folder_id is not None
+            else "/folders/"
+        )
+        res = await self._request("GET", endpoint)
+        if not isinstance(res, dict) or res.get("error"):
+            return res
+        current = res.get("current_folder")
+        raw_sub_folders = res.get("sub_folders")
+        sub_folders: list[Any] = raw_sub_folders if isinstance(raw_sub_folders, list) else []
+        raw_documents = res.get("documents")
+        documents: list[Any] = raw_documents if isinstance(raw_documents, list) else []
+        compact_folders = [
+            {
+                "id": f.get("id"),
+                "name": f.get("name"),
+                "parent": f.get("parent"),
+            }
+            for f in sub_folders
+            if isinstance(f, dict)
+        ]
+        return {
+            "current_folder": (
+                {
+                    "id": current.get("id"),
+                    "name": current.get("name"),
+                    "parent": current.get("parent"),
+                }
+                if isinstance(current, dict)
+                else None
+            ),
+            "sub_folders": compact_folders,
+            "total_folders": len(compact_folders),
+            "documents_count": len(documents),
+        }
+
     async def update_folder(self, folder_id: str, name: str) -> dict[str, Any]:
         f_id = _validate_resource_id(folder_id, "folder_id")
         return await self._request("PATCH", f"/folders/{f_id}/", json_data={"name": name})
@@ -783,7 +868,13 @@ class ConeshareClient:
             "document_ids": clean_doc_ids,
             "folder_ids": clean_folder_ids,
         }
-        return await self._request("POST", "/actions/move/", json_data=payload)
+        try:
+            return await self._request("POST", "/actions/move/", json_data=payload)
+        except ValueError as exc:
+            raise self._with_api_error_hint(
+                exc,
+                "Verify destination_folder_id, document_ids, and folder_ids via list_folders and list_documents.",
+            ) from exc
 
     # --- Datarooms API ---
 
@@ -859,10 +950,17 @@ class ConeshareClient:
         doc_ids = dataroom_document_ids or document_ids
         payload: dict[str, Any] = {}
         if doc_ids:
-            payload["dataroom_document_ids"] = [_validate_resource_id(d, "document_id") for d in doc_ids]
+            payload["dataroom_document_ids"] = [_validate_resource_id(d, "dataroom_document_id") for d in doc_ids]
         if dataroom_folder_ids:
             payload["dataroom_folder_ids"] = [_validate_resource_id(f, "dataroom_folder_id") for f in dataroom_folder_ids]
-        return await self._request("POST", f"/datarooms/{dr_id}/remove-content/", json_data=payload)
+        try:
+            return await self._request("POST", f"/datarooms/{dr_id}/remove-content/", json_data=payload)
+        except ValueError as exc:
+            raise self._with_api_error_hint(
+                exc,
+                "Verify that dataroom_document_ids and dataroom_folder_ids come from get_dataroom(dataroom_id) "
+                "or search_dataroom_content(dataroom_id) rather than workspace folder/document listings.",
+            ) from exc
 
     async def update_dataroom(
         self,
@@ -902,11 +1000,29 @@ class ConeshareClient:
         return self._paginate(res, page, page_size)
 
     async def create_share_link(self, data: dict[str, Any]) -> dict[str, Any]:
-        return await self._request("POST", "/share-links/", json_data=data)
+        try:
+            return await self._request("POST", "/share-links/", json_data=data)
+        except ValueError as exc:
+            if "watermark" in str(exc).lower():
+                raise self._with_api_error_hint(
+                    exc,
+                    "Dynamic watermarks are supported only on PDF, Office, and image documents, or datarooms.",
+                    match_substrings=("(400)",),
+                ) from exc
+            raise
 
     async def update_share_link(self, share_link_id: str, data: dict[str, Any]) -> dict[str, Any]:
         sl_id = _validate_resource_id(share_link_id, "share_link_id")
-        return await self._request("PATCH", f"/share-links/{sl_id}/", json_data=data)
+        try:
+            return await self._request("PATCH", f"/share-links/{sl_id}/", json_data=data)
+        except ValueError as exc:
+            if "watermark" in str(exc).lower():
+                raise self._with_api_error_hint(
+                    exc,
+                    "Dynamic watermarks are supported only on PDF, Office, and image documents, or datarooms.",
+                    match_substrings=("(400)",),
+                ) from exc
+            raise
 
     # --- Analytics API ---
 

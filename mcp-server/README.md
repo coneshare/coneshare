@@ -59,8 +59,38 @@ The tool modules (`documents.py`, `share_links.py`, `datarooms.py`, `analytics.p
 The server runs as a shared remote MCP HTTP endpoint on port `8001`. You do not set a server-wide API key on the server itself.
 
 Each user authenticates per request in one of two ways:
-1. OAuth 2.1 with PKCE (web AI clients): When `CONESHARE_OAUTH_ENABLED=true`, ChatGPT, Google Gemini, Claude.ai, and Grok discover OAuth metadata, register dynamically, and prompt you to sign in to Coneshare and approve `read` or `write` scopes. Destructive deletes, admin endpoints, and viewer PII analytics remain blocked.
-2. Scoped API keys (CLI and desktop agents): Create an API key under Settings > API Keys (`cs_live_...`) and pass it in the `Authorization: Bearer cs_live_...` header. The server enforces the key's tier (`read_only`, `read_write`, or `full_access`).
+1. OAuth 2.1 with PKCE (web AI clients): When `CONESHARE_OAUTH_ENABLED=true`, ChatGPT, Google Gemini, Claude.ai, and Grok discover OAuth metadata, register dynamically, and prompt you to sign in to Coneshare and approve `read` or `write` scopes. Destructive deletes, dataroom removals (`remove_content_from_dataroom`), admin endpoints, and viewer session PII analytics (`list_view_sessions`, `get_view_session`) are automatically hidden from `tools/list` and blocked.
+2. Scoped API keys (CLI and desktop agents): Create an API key under Settings > API Keys (`cs_live_...`) and pass it in the `Authorization: Bearer cs_live_...` header. `read`-only keys automatically hide write/destructive tools when `CONESHARE_OAUTH_ENABLED=true`; backend `APIKeyTierPermission` enforces `read_only`, `read_write`, or `full_access` on every request.
+
+---
+
+## Toolsets & Filtering (`?toolsets=` / `X-Coneshare-Toolsets`)
+
+By default, `coneshare-mcp` exposes **32 tools** and excludes the 3 `[ADMIN ONLY]` tools to reduce prompt clutter and avoid IDE tool-count caps. You can customize active toolsets per connection:
+
+| Preset / Token | Effect | Default Tools (API Key) |
+|---|---|---|
+| *(omitted / `default`)* | `core` + `folders` + `destructive` (excludes `admin`) | 32 tools |
+| `core` | Slim preset: daily workspace, dataroom, share-link & analytics tools (excludes `folders`, `destructive`, `admin`) | 24 tools |
+| `admin` | Additive: enables `[ADMIN ONLY]` tools (`list_admin_users`, `get_admin_user_details`, `list_login_activities`) on top of the active base | 35 tools (`core,admin`: 27) |
+| `core,folders` | Slim core + non-destructive folder tools (still excludes `delete_folder`) | 28 tools |
+| `all` | Enables all toolsets | 35 tools |
+
+- **Web AI clients (ChatGPT, Claude.ai, Gemini):** Append `?toolsets=core` to the connector URL if you want the slim 24-tool API-key baseline / **22-tool OAuth** preset (note: `oauth2` already hides `admin`, `destructive`, and viewer session PII tools, yielding **26 tools** by default or **22** with `?toolsets=core`).
+- **CLI / Desktop / IDE clients:** Append `?toolsets=admin` (or `?toolsets=core`) to the URL **or** pass header `X-Coneshare-Toolsets: admin`. Header configuration avoids query-string differences when strict OAuth `resource` matching is enabled.
+- **Transport requirement (`streamable-http` vs legacy `sse`):** URL `?toolsets=` query parameters apply to the default `streamable-http` transport (where requests target `/mcp/sse?toolsets=...`). When running with legacy `MCP_TRANSPORT=sse`, the SSE `endpoint` event posts to `/messages/?session_id=...` without preserving connect-URL query params—clients on legacy `sse` must pass the `X-Coneshare-Toolsets` header instead.
+- Precedence when combining tokens: base preset (`all` > `core` > `default`) is selected first, then additive tags (`folders`, `destructive`, `admin`) are unioned; unknown tokens are ignored with a warning log.
+
+---
+
+## Upgrading to `v1.0.0` (Breaking Changes & Migration)
+
+If upgrading from `0.1.0`:
+- **Renamed tools:** `get_document` -> **`get_document_metadata`**, `update_document` -> **`update_document_metadata`**.
+- **Renamed parameters on `remove_content_from_dataroom`:** `document_ids` / `folder_ids` -> **`dataroom_document_ids`** / **`dataroom_folder_ids`**.
+- **New tool:** Added **`list_folders`** for enumerating workspace folder ULIDs.
+- **Default visibility:** `admin` tools now require `?toolsets=admin` or `X-Coneshare-Toolsets: admin`.
+- **Action required for CLI/IDE users:** Re-install the updated `coneshare-it` `SKILL.md` (`v2.0.0`) locally and reconnect/restart your MCP client to refresh its cached `tools/list`.
 
 ---
 
@@ -158,22 +188,23 @@ curl -sSL https://raw.githubusercontent.com/coneshare/coneshare/main/.agent/skil
 
 ---
 
-## Available tools (34 tools)
+## Available tools (35 total: 32 default / 24 slim `core` / 3 opt-in `admin`)
 
-### Documents and folders (17 tools)
+### Documents and folders (18 tools)
 * `list_documents`: Paginated list of workspace documents with folder filtering.
-* `get_document`: Retrieve detailed document metadata, versions, and active links.
+* `get_document_metadata`: Metadata only — retrieve document properties, versions, and active links (includes `next_step_hint`).
 * `read_text_document`: Read UTF-8 content of a text-based document (`.md`, `.csv`, `.txt`, `.json`, `.yaml`) into context with pagination.
 * `get_document_download_url`: Get a temporary signed download URL for the primary version of any document.
 * `search_documents`: Search workspace documents by filename or description query with pagination.
 * `create_text_document`: Create a Markdown, CSV, or plain text document directly from in-memory text (defaults to `.md`, ensures folders along `path`, no external PUT required).
 * `update_text_document`: Update an existing text or Markdown document in place with a new version from in-memory content, preserving its document ID and share links.
-* `update_document`: Rename or update description metadata of an existing document.
+* `update_document_metadata`: Rename or update description metadata only for an existing document (does not modify file content).
 * `delete_document`: `[DESTRUCTIVE]` Soft-delete a document (moves to Trash).
-* `create_folder`: Create a new folder in your workspace documents hierarchy.
-* `update_folder`: Rename an existing workspace folder.
-* `delete_folder`: `[DESTRUCTIVE]` Soft-delete a workspace folder.
-* `move_items`: Move documents and/or subfolders into a destination workspace folder.
+* `list_folders`: `[folders]` List subfolders in your workspace root or under a given `parent_folder_id`.
+* `create_folder`: `[folders]` Create a new folder in your workspace documents hierarchy.
+* `update_folder`: `[folders]` Rename an existing workspace folder.
+* `delete_folder`: `[folders, DESTRUCTIVE]` Soft-delete a workspace folder.
+* `move_items`: `[folders]` Move documents and/or subfolders into a destination workspace folder.
 * `request_document_upload`: Request a pre-signed URL to upload a new document directly to storage.
 * `finalize_document_upload`: Finalize new document creation after streaming file content to pre-signed upload URL.
 * `request_version_upload`: Request a pre-signed URL to upload a new version of an existing document (preserves ID and share links).
@@ -181,25 +212,25 @@ curl -sSL https://raw.githubusercontent.com/coneshare/coneshare/main/.agent/skil
 
 ### Datarooms (8 tools)
 * `list_datarooms`: List accessible datarooms with pagination and optional `name` substring filter.
-* `get_dataroom`: Retrieve dataroom hierarchy, settings, and items.
+* `get_dataroom`: Retrieve dataroom hierarchy, `dataroom_document` / `dataroom_folder` IDs, settings, and items.
 * `search_dataroom_content`: Search folders and documents across all subfolders inside a specific dataroom.
 * `create_dataroom`: Create a new dataroom to group and share documents.
 * `add_content_to_dataroom`: Attach workspace documents to an existing dataroom.
-* `remove_content_from_dataroom`: Remove workspace documents from an existing dataroom.
+* `remove_content_from_dataroom`: `[DESTRUCTIVE]` Remove dataroom documents or folders from an existing dataroom (`dataroom_document_ids`, `dataroom_folder_ids`).
 * `update_dataroom`: Update metadata (name, description) for an existing dataroom.
 * `delete_dataroom`: `[DESTRUCTIVE]` Delete a dataroom.
 
 ### Share links (3 tools)
 * `list_share_links`: List active share links, filterable by document or dataroom.
-* `create_share_link`: Create a share link with NDA text, custom watermark text, email verification, password, and download controls.
+* `create_share_link`: Create a share link for one document or one dataroom with NDA text, custom watermark text, email verification, password, and download controls.
 * `update_share_link`: Modify security settings, watermark/NDA text, email controls, or toggle link active status.
 
 ### Analytics (3 tools)
-* `get_document_analytics`: Fetch view counts, durations, and viewer statistics for a document.
-* `list_view_sessions`: List viewer session summaries filterable by document, link, dataroom, or email.
-* `get_view_session`: Retrieve detailed session breakdown (page view durations, video logs, link clicks).
+* `get_document_analytics`: Fetch aggregate view counts, durations, and viewer statistics for a document.
+* `list_view_sessions`: List viewer session summaries filterable by document, link, dataroom, or email (API key only).
+* `get_view_session`: Retrieve detailed session breakdown (page view durations, video logs, link clicks; API key only).
 
-### Admin (3 tools)
+### Admin (3 tools — opt-in via `?toolsets=admin` or `X-Coneshare-Toolsets: admin`)
 * `list_admin_users`: `[ADMIN ONLY]` List organization users with pagination and search.
 * `get_admin_user_details`: `[ADMIN ONLY]` Detailed user profile, link count, and views.
 * `list_login_activities`: `[ADMIN ONLY]` Organization login logs (IP, user agent, timestamp).

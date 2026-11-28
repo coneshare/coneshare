@@ -88,15 +88,33 @@ const TOOL_DEFINITIONS = [
         apiKeyOnly: false,
       },
       {
+        name: 'update_text_document',
+        descEn: 'Update an existing text, Markdown, or CSV document in place while keeping its share links',
+        descZh: '原地更新文本、Markdown 或 CSV 文档的新版本，保持原分享链接有效',
+        apiKeyOnly: false,
+      },
+      {
+        name: 'read_text_document',
+        descEn: 'Read UTF-8 content of a Markdown, CSV, JSON, YAML, or plain text document into AI context',
+        descZh: '直接读取 Markdown、CSV、JSON 等文本类文档内容进 AI 上下文',
+        apiKeyOnly: false,
+      },
+      {
+        name: 'get_document_download_url',
+        descEn: 'Get a temporary signed download URL for binary or oversized files',
+        descZh: '获取二进制或大文件的临时签名下载链接',
+        apiKeyOnly: false,
+      },
+      {
         name: 'list_documents',
         descEn: 'Paginated list of workspace documents with folder filtering',
         descZh: '按文件夹筛选分页列出工作区文档',
         apiKeyOnly: false,
       },
       {
-        name: 'get_document',
-        descEn: 'Retrieve document metadata, versions, and active links',
-        descZh: '获取文档详情、版本信息及有效分享链接',
+        name: 'get_document_metadata',
+        descEn: 'Retrieve document metadata, version history, and active links (with next-step hints)',
+        descZh: '获取文档元数据、版本历史与有效分享链接（附下一步提示）',
         apiKeyOnly: false,
       },
       {
@@ -106,9 +124,9 @@ const TOOL_DEFINITIONS = [
         apiKeyOnly: false,
       },
       {
-        name: 'update_document',
-        descEn: 'Rename or update metadata of an existing document',
-        descZh: '重命名或更新现有文档的描述元数据',
+        name: 'update_document_metadata',
+        descEn: 'Rename or update description metadata only (without changing file content)',
+        descZh: '仅重命名文档或修改描述元数据（不替换文件内容）',
         apiKeyOnly: false,
       },
       {
@@ -116,6 +134,12 @@ const TOOL_DEFINITIONS = [
         descEn: 'Soft-delete a document (moves to Trash)',
         descZh: '软删除文档（移入回收站，可在网页端恢复）',
         apiKeyOnly: true,
+      },
+      {
+        name: 'list_folders',
+        descEn: 'List subfolders in workspace root or under a parent folder',
+        descZh: '列出工作区根目录或指定父目录中的子文件夹',
+        apiKeyOnly: false,
       },
       {
         name: 'create_folder',
@@ -151,6 +175,18 @@ const TOOL_DEFINITIONS = [
         name: 'finalize_document_upload',
         descEn: 'Commit uploaded document metadata and start preview rendering',
         descZh: '提交已上传文档的元数据并触发后台预览渲染',
+        apiKeyOnly: true,
+      },
+      {
+        name: 'request_version_upload',
+        descEn: 'Request a pre-signed URL to upload a new binary version of an existing document',
+        descZh: '为已有文档申请预签名链接以直传新版本二进制文件',
+        apiKeyOnly: true,
+      },
+      {
+        name: 'finalize_version_upload',
+        descEn: 'Finalize a new uploaded binary version and preserve existing share links',
+        descZh: '提交新版二进制文件并保持原分享链接有效',
         apiKeyOnly: true,
       },
     ],
@@ -246,7 +282,7 @@ const TOOL_DEFINITIONS = [
         name: 'get_document_analytics',
         descEn: 'Page view durations, total viewers, and engagement summary',
         descZh: '汇总文档浏览总时长、访客数量与整体参与度',
-        apiKeyOnly: true,
+        apiKeyOnly: false,
       },
       {
         name: 'list_view_sessions',
@@ -264,8 +300,8 @@ const TOOL_DEFINITIONS = [
   },
   {
     id: 'admin',
-    nameEn: 'Admin',
-    nameZh: '组织管理',
+    nameEn: 'Admin (opt-in via ?toolsets=admin)',
+    nameZh: '组织管理（需 ?toolsets=admin 开启）',
     tools: [
       {
         name: 'list_admin_users',

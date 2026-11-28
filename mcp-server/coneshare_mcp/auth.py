@@ -176,5 +176,5 @@ def build_auth_provider(settings: Settings) -> Optional[ConeshareRemoteAuthProvi
         authorization_servers=[AnyHttpUrl(base_url)],
         base_url=base_url,
         scopes_supported=CONESHARE_OAUTH_SCOPES,
-        resource_name="ConeShare Workspace MCP",
+        resource_name="Coneshare Workspace MCP",
     )

@@ -2,22 +2,28 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastmcp import FastMCP, Context
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from coneshare_mcp.client import ConeshareClient
 
 
 def register_share_link_tools(mcp: FastMCP) -> None:
 
-    @mcp.tool()
+    @mcp.tool(tags={"core", "read"})
     async def list_share_links(
         ctx: Context,
-        document_id: Optional[str] = Field(default=None, description="Filter by document ULID"),
-        dataroom_id: Optional[str] = Field(default=None, description="Filter by dataroom ULID"),
+        document_id: Optional[str] = Field(
+            default=None,
+            description="Optional workspace document ULID to filter share links (from list_documents or search_documents)",
+        ),
+        dataroom_id: Optional[str] = Field(
+            default=None,
+            description="Optional dataroom ULID to filter share links (from list_datarooms)",
+        ),
         page: int = Field(default=1, ge=1, description="Page number"),
         page_size: int = Field(default=20, ge=1, le=100, description="Items per page (max 100)"),
     ) -> dict:
-        """List active share links filterable by target document or dataroom."""
+        """List active share link entries (and share links) in Coneshare, filterable by document or dataroom."""
         client = ConeshareClient.from_ctx(ctx)
         return await client.list_share_links(
             document_id=document_id,
@@ -26,11 +32,17 @@ def register_share_link_tools(mcp: FastMCP) -> None:
             page_size=page_size,
         )
 
-    @mcp.tool()
+    @mcp.tool(tags={"core", "write"})
     async def create_share_link(
         ctx: Context,
-        document_id: Optional[str] = Field(default=None, description="ULID of target document"),
-        dataroom_id: Optional[str] = Field(default=None, description="ULID of target dataroom"),
+        document_id: Optional[str] = Field(
+            default=None,
+            description="Target workspace document ULID (from list_documents, search_documents, or create_text_document); mutually exclusive with dataroom_id",
+        ),
+        dataroom_id: Optional[str] = Field(
+            default=None,
+            description="Target dataroom ULID (from list_datarooms or create_dataroom); mutually exclusive with document_id",
+        ),
         name: Optional[str] = Field(default=None, description="Optional share link display name"),
         password: Optional[str] = Field(default=None, description="Optional protection password"),
         expires_in_days: Optional[int] = Field(default=None, description="Link expiration in days"),
@@ -39,8 +51,8 @@ def register_share_link_tools(mcp: FastMCP) -> None:
         enable_watermark: Optional[bool] = Field(
             default=None,
             description=(
-                "Overlay dynamic watermark on document preview (supported only for PDF, Office, "
-                "and image documents, or datarooms; not supported for markdown/spreadsheet/video)"
+                "Overlay dynamic watermark on preview (supported only for PDF, Office, "
+                "and image files, or datarooms; not supported for markdown/spreadsheet/video)"
             ),
         ),
         watermark_text: Optional[str] = Field(
@@ -55,16 +67,24 @@ def register_share_link_tools(mcp: FastMCP) -> None:
         requires_email_verification: Optional[bool] = Field(default=None, description="Require viewer to verify email via OTP code before viewing"),
         receive_email_notification: Optional[bool] = Field(default=True, description="Send email alert to link owner whenever viewed"),
     ) -> dict:
-        """Create a new share link for a document or dataroom with optional security controls.
+        """Create a new Coneshare share link for one document or one dataroom with optional security controls.
 
         Returns full viewer URL property 'url' alongside 'slug'.
         """
+        has_doc = bool(document_id and document_id.strip())
+        has_dr = bool(dataroom_id and dataroom_id.strip())
+        if has_doc == has_dr:
+            raise ValueError(
+                "Provide exactly one of document_id (from list_documents or search_documents) "
+                "or dataroom_id (from list_datarooms)."
+            )
+
         client = ConeshareClient.from_ctx(ctx)
         payload: dict = {}
 
-        if document_id:
+        if has_doc:
             payload["document"] = document_id
-        if dataroom_id:
+        if has_dr:
             payload["dataroom"] = dataroom_id
         if name:
             payload["name"] = name
@@ -95,10 +115,12 @@ def register_share_link_tools(mcp: FastMCP) -> None:
 
         return await client.create_share_link(payload)
 
-    @mcp.tool()
+    @mcp.tool(tags={"core", "write"})
     async def update_share_link(
         ctx: Context,
-        share_link_id: str = Field(description="ULID of the share link to update"),
+        share_link_id: str = Field(
+            description="Share link ULID (from list_share_links)"
+        ),
         name: Optional[str] = Field(default=None, description="Updated share link display name"),
         password: Optional[str] = Field(default=None, description="Updated protection password"),
         expires_in_days: Optional[int] = Field(default=None, description="Link expiration in days (e.g. 7)"),
@@ -109,7 +131,7 @@ def register_share_link_tools(mcp: FastMCP) -> None:
         enable_watermark: Optional[bool] = Field(
             default=None,
             description=(
-                "Overlay dynamic watermark (supported only for PDF, Office, and image documents, "
+                "Overlay dynamic watermark (supported only for PDF, Office, and image files, "
                 "or datarooms; not supported for markdown/spreadsheet/video)"
             ),
         ),
@@ -123,7 +145,7 @@ def register_share_link_tools(mcp: FastMCP) -> None:
         receive_email_notification: Optional[bool] = Field(default=None, description="Send email alert to link owner whenever viewed"),
         is_active: Optional[bool] = Field(default=None, description="Enable or disable share link"),
     ) -> dict:
-        """Modify security parameters or active state of an existing share link."""
+        """Modify security parameters or active state of an existing Coneshare share link."""
         client = ConeshareClient.from_ctx(ctx)
         payload: dict = {}
 

@@ -178,12 +178,14 @@ sequenceDiagram
 
 ---
 
-## 3. Tool Catalog
+## 3. Tool Catalog & Per-Request Toolsets
 
-The canonical MCP tool inventory (covering **Documents & Folders**, **Datarooms**, **Share Links**, **Analytics**, and **Admin** tools) is maintained in a single source of truth:
+The canonical MCP tool inventory (35 tools covering **Documents & Folders**, **Datarooms**, **Share Links**, **Analytics**, and **Admin** tools; `default`: 32 tools, slim `core`: 24 tools, opt-in `admin`: 3 tools) is maintained in a single source of truth:
 
-- **Available Tools:** See the `Available Tools` section in [mcp-server/README.md](../../mcp-server/README.md)
-- **Tool Definitions:** [mcp-server/coneshare_mcp/tools/](../../mcp-server/coneshare_mcp/tools/)
+- **Available Tools & Toolset Presets (`?toolsets=` / `X-Coneshare-Toolsets`):** See the `Toolsets & Filtering` and `Available tools` sections in [mcp-server/README.md](../../mcp-server/README.md)
+- **Tool Definitions & Middleware:** [mcp-server/coneshare_mcp/tools/](../../mcp-server/coneshare_mcp/tools/) and [mcp-server/coneshare_mcp/toolsets.py](../../mcp-server/coneshare_mcp/toolsets.py)
+- **Per-Request Filtering:** `ToolsetFilterMiddleware` excludes `admin` by default, honors `?toolsets=core` / `?toolsets=admin` (on the default `streamable-http` transport) or `X-Coneshare-Toolsets` header (required for legacy `MCP_TRANSPORT=sse`, since SSE `/messages/?session_id=...` POSTs do not retain connect-URL query params), and hides unauthorized tools (`admin`, `destructive`, and `viewer_analytics` for `oauth2`; `write` / `destructive` for `read`-only tokens) in `tools/list` while failing closed in `tools/call`.
+- **Pre-Release OAuth Query Verification Note:** `django-oauth-toolkit`'s `validate_resource_as_url_prefix` and local `TestClient` OAuth mocks pass when `?toolsets=core` is appended to `/mcp/sse`, **but end-to-end RFC 8707 `resource` indicator matching with `?toolsets=core` has not yet been tested against live web AI clients (ChatGPT, Claude.ai, Gemini)**. Verify against live connectors prior to release and record the outcome here.
 
 ---
 
