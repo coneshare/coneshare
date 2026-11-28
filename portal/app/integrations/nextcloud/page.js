@@ -163,16 +163,16 @@ export default function NextcloudIntegrationPage() {
 
         <section className="mx-auto mt-12 max-w-4xl rounded-2xl bg-gray-900 px-8 py-10 text-center text-white">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Add secure sharing and visibility to Nextcloud</h2>
-          <p className="mt-4 text-base text-gray-200">Keep your Nextcloud workflow and add control, tracking, and workflow actions.</p>
-          <div className="mt-8 flex items-center justify-center gap-6">
+          <p className="mt-4 text-base text-gray-200">Keep Nextcloud as your internal workspace and add external data rooms, NDA gates, and page-level analytics — free via Docker or deployed turnkey ($299).</p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-6">
             <Link href="/demo" className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-100">
               View live demo
             </Link>
+            <Link href="/pricing" className="text-sm font-semibold text-white hover:text-gray-200">
+              Turnkey setup &amp; pricing <span aria-hidden="true">→</span>
+            </Link>
             <Link href="/virtual-dataroom" className="text-sm font-semibold text-white hover:text-gray-200">
               Explore VDR features <span aria-hidden="true">→</span>
-            </Link>
-            <Link href="/integrations/google-drive" className="text-sm font-semibold text-white hover:text-gray-200">
-              Compare with Google Drive <span aria-hidden="true">→</span>
             </Link>
           </div>
         </section>

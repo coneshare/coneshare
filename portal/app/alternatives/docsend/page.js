@@ -74,9 +74,15 @@ export default function DocsendAlternativePage() {
             data room workflows for controlled external distribution.
           </p>
           <p className="mt-3 text-base text-gray-600">Works with Google Drive, Dropbox, and Nextcloud.</p>
-          <div className="mt-10 flex items-center justify-center gap-5">
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-5">
             <Link href="/demo" className="rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800">
               View live demo
+            </Link>
+            <Link
+              href="/pricing"
+              className="rounded-md border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+            >
+              See pricing ($0 self-hosted · $299 setup)
             </Link>
             <Link href="/integrations/nextcloud" className="text-sm font-semibold text-gray-900 hover:text-gray-700">
               See Nextcloud integration <span aria-hidden="true">→</span>
@@ -89,10 +95,10 @@ export default function DocsendAlternativePage() {
             <h2 className="text-gray-900">Why teams look for a DocSend alternative</h2>
             <p>Many teams start with DocSend for document tracking. Over time, common constraints emerge.</p>
             <ul>
-              <li>Documents are uploaded into a separate SaaS delivery flow</li>
-              <li>Sensitive file distribution may fall outside preferred infrastructure boundaries</li>
-              <li>Workflow flexibility for internal systems can be limited</li>
-              <li>Deeper integration expectations grow as use cases mature</li>
+              <li>Per-seat pricing adds up quickly, especially once you need Virtual Data Rooms, NDA gates, or dynamic watermarks</li>
+              <li>Documents are uploaded into a third-party multi-tenant SaaS cloud</li>
+              <li>Sensitive file distribution may fall outside GDPR or regional data residency boundaries</li>
+              <li>Workflow flexibility and self-hosted customization options are limited</li>
             </ul>
           </div>
         </div>
@@ -171,24 +177,29 @@ export default function DocsendAlternativePage() {
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
                 <tr>
+                  <td className="px-4 py-3 text-gray-700">Pricing &amp; team seats</td>
+                  <td className="px-4 py-3 text-gray-700">Per-seat subscription ($15–$250+/user/mo for full VDR)</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">Free MIT open-source (unlimited seats); optional $299 turnkey setup or $199/mo Managed BYOC</td>
+                </tr>
+                <tr>
                   <td className="px-4 py-3 text-gray-700">Data ownership posture</td>
-                  <td className="px-4 py-3 text-gray-700">Vendor-managed SaaS delivery model</td>
-                  <td className="px-4 py-3 text-gray-700">Self-hosted deployment model with internal infrastructure control</td>
+                  <td className="px-4 py-3 text-gray-700">Vendor-managed multi-tenant SaaS cloud</td>
+                  <td className="px-4 py-3 text-gray-700">100% on your own server or private cloud</td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-3 text-gray-700">Storage workflow</td>
+                  <td className="px-4 py-3 text-gray-700">NDA gates &amp; dynamic watermarks</td>
+                  <td className="px-4 py-3 text-gray-700">Locked behind higher-tier plans</td>
+                  <td className="px-4 py-3 text-gray-700">Included out of the box across PDFs, Office docs, spreadsheets &amp; video</td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-3 text-gray-700">Storage &amp; cloud import</td>
                   <td className="px-4 py-3 text-gray-700">Upload into separate SaaS workspace</td>
-                  <td className="px-4 py-3 text-gray-700">Controlled distribution layer for existing storage workflows</td>
+                  <td className="px-4 py-3 text-gray-700">Store directly on your server/S3, or import from Nextcloud, Google Drive &amp; Dropbox</td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-3 text-gray-700">Flexibility</td>
+                  <td className="px-4 py-3 text-gray-700">Flexibility &amp; automation</td>
                   <td className="px-4 py-3 text-gray-700">Product-defined workflow boundaries</td>
-                  <td className="px-4 py-3 text-gray-700">Slack, webhooks, and internal stack integration</td>
-                </tr>
-                <tr>
-                  <td className="px-4 py-3 text-gray-700">Best fit</td>
-                  <td className="px-4 py-3 text-gray-700">Convenience-first SaaS teams</td>
-                  <td className="px-4 py-3 text-gray-700">Control-first, security-conscious teams</td>
+                  <td className="px-4 py-3 text-gray-700">Slack, webhooks, REST API, and native remote MCP server</td>
                 </tr>
               </tbody>
             </table>
@@ -231,26 +242,29 @@ export default function DocsendAlternativePage() {
         </section>
 
         <section className="mx-auto mt-12 max-w-4xl rounded-2xl border border-gray-200 bg-gray-50 p-8">
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900">Need a Virtual Dataroom?</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900">No IT team? Go live in 1–2 business days</h2>
           <p className="mt-4 text-base leading-7 text-gray-700">
-            Coneshare adds secure sharing, viewer analytics, and follow-up automations on top of your existing cloud or local storage.
+            You do not need an in-house DevOps engineer to own your private data room. Even if you do not have a cloud server yet, we can walk you through spinning up a ~$20/mo VPS in minutes and handle custom domain, SSL, email delivery, and storage setup end-to-end for a <strong>$299 one-time Done-For-You Setup</strong> — or manage updates and backups for you with <strong>Managed BYOC ($199/mo)</strong>.
           </p>
-          <p className="mt-6">
+          <div className="mt-6 flex flex-wrap items-center gap-6">
+            <Link href="/pricing" className="rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800">
+              Compare Setup &amp; Managed BYOC
+            </Link>
             <Link href="/virtual-dataroom" className="text-sm font-semibold text-gray-900 hover:text-gray-700">
               Explore Virtual Datarooms <span aria-hidden="true">→</span>
             </Link>
-          </p>
+          </div>
         </section>
 
         <section className="mx-auto mt-12 max-w-4xl rounded-2xl bg-gray-900 px-8 py-10 text-center text-white">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Looking for a DocSend alternative?</h2>
-          <p className="mt-4 text-base text-gray-200">Keep your storage workflow. Add control, visibility, and workflows.</p>
-          <div className="mt-8 flex items-center justify-center gap-6">
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Looking for a DocSend alternative without per-seat fees?</h2>
+          <p className="mt-4 text-base text-gray-200">Own your deal rooms on your own server — free via Docker or deployed turnkey by our team.</p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-6">
             <Link href="/demo" className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-100">
               View live demo
             </Link>
-            <Link href="/virtual-dataroom" className="text-sm font-semibold text-white hover:text-gray-200">
-              Get started <span aria-hidden="true">→</span>
+            <Link href="/pricing" className="text-sm font-semibold text-white hover:text-gray-200">
+              View pricing &amp; turnkey setup <span aria-hidden="true">→</span>
             </Link>
           </div>
         </section>

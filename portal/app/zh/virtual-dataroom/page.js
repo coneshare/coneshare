@@ -14,7 +14,7 @@ import { ZoomableImage } from '../../../components/ZoomableImage';
 export const metadata = {
   title: '安全私有化虚拟资料室 (VDR) | Coneshare',
   description:
-    '无需迁移现有网盘文件，直接将企业的 Nextcloud 或本地存储升级为安全私有化虚拟资料室。支持一室多链分权、隔离文档问答与逐页阅读追踪，数据 100% 留在自有服务器。',
+    '部署在自有服务器的安全私有化虚拟资料室，支持从 Nextcloud、Google Drive、Dropbox 导入同步文件。一室多链分权、隔离文档问答与逐页阅读追踪，数据 100% 自主可控。',
   keywords: [
     '虚拟资料室',
     '私有化资料室',
@@ -60,9 +60,9 @@ export default function ZhVirtualDataroomPage() {
   const steps = [
     {
       number: '01',
-      title: '一键关联与自定义目录整理',
+      title: '网盘导入同步与自定义目录整理',
       description:
-        '直接挂载企业现有的 Nextcloud、本地存储或 Google Drive，快速编排资料室目录。当网盘内的源文件更新版本时，后台一键增量同步，已发出的资料室链接自动呈现最新版，无需重新发送。',
+        '支持直接上传至企业自有本地/对象存储，或从 Nextcloud、Google Drive、Dropbox 一键导入选定文件编排资料室目录。源文件更新版本时可一键刷新同步，已发出的资料室链接自动呈现最新版。',
       image: '/screenshots/feat-vdr-add-content.png',
     },
     {
@@ -91,7 +91,7 @@ export default function ZhVirtualDataroomPage() {
   const faqs = [
     {
       q: '相比公有云 SaaS 资料室，Coneshare 如何确保文件安全？',
-      a: '公有云平台会将您的敏感商业文件复制并存储在企业安全边界之外的第三方服务器上。Coneshare 直接对接您现有的存储服务（Nextcloud、Google Drive、Dropbox 或本地挂载存储），在您的私有基础设施内运行。文档预览与水印处理均在本地完成，确保敏感文件永远不离开您的安全边界。',
+      a: '公有云平台会将您的敏感商业文件存储在企业安全边界之外的第三方多租户服务器上。Coneshare 运行在您自有的服务器基础设施内，支持自有本地/对象存储并可按需从 Nextcloud、Google Drive、Dropbox 导入文件。文档预览与水印处理均在您的服务器内完成，确保敏感数据不外流。',
     },
     {
       q: 'Coneshare 是否支持动态 PDF 水印？',
@@ -136,7 +136,7 @@ export default function ZhVirtualDataroomPage() {
                   企业级安全资料室，数据完全自主掌控
                 </h1>
                 <p className="mt-5 text-base leading-7 text-gray-600 sm:text-lg">
-                  不限资料室数量与访客人数，以远低于传统 VDR 的成本获得全套安全管控。无论是客户提案交付、合规审计、董事会文件还是融资尽调，文件无需迁移出原有存储，一套工具搞定安全协作与权限追踪。
+                  不限资料室数量与访客人数，以远低于传统 VDR 的成本获得全套安全管控。无论是客户提案交付、合规审计、董事会文件还是融资尽调，文件全部留在自有服务器，一套工具搞定安全协作与权限追踪。
                 </p>
                 <div className="mt-8 flex flex-wrap items-center gap-4">
                   <Link
@@ -145,14 +145,12 @@ export default function ZhVirtualDataroomPage() {
                   >
                     查看在线演示
                   </Link>
-                  <a
-                    href="https://github.com/coneshare/coneshare"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    href="/zh/pricing"
                     className="rounded-md border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 inline-flex items-center gap-1.5"
                   >
-                    前往 GitHub 源码 <span aria-hidden="true">→</span>
-                  </a>
+                    部署方案与定价 <span aria-hidden="true">→</span>
+                  </Link>
                 </div>
               </div>
 

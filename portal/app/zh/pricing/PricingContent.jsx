@@ -194,7 +194,7 @@ export function PricingContent() {
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>挂载本地存储、Nextcloud、Google Drive 或 Dropbox</span>
+                    <span>支持本地/对象存储，或从 Nextcloud、Google Drive、Dropbox 导入</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
@@ -267,7 +267,7 @@ export function PricingContent() {
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>挂载现有存储（Nextcloud / Google Drive / Dropbox / 本地）并完成水印与预览调优</span>
+                    <span>存储与网盘导入配置（本地存储 / Nextcloud / Google Drive / Dropbox）及水印预览调优</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />

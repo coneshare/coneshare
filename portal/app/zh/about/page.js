@@ -11,9 +11,9 @@ export const metadata = {
 
 const principles = [
   {
-    title: '文件不动，能力直连',
+    title: '自有服务器存储与网盘导入同步',
     body:
-      '企业已经在用 Nextcloud、本地存储或各类云盘管理日常文件。ConeShare 直接挂载您现有的存储系统，无需把敏感数据重新上传或迁移到第三方平台。',
+      '核心文件与渲染缓存完全保存在企业自有服务器或对象存储中，同时支持从现有的 Nextcloud、Google Drive、Dropbox 按需导入并同步外发文档，无需将机密材料交给第三方 SaaS 平台。',
   },
   {
     title: '核心代码 100% 开源透明',
@@ -37,8 +37,8 @@ const trustCommitments = [
     body: '支持离线许可证与气隙隔离（Air-gapped）环境部署，不向任何外部公网服务器反向回传文档内容或分析遥测数据。',
   },
   {
-    title: '永不挪动企业核心资产',
-    body: '文档始终保留在企业现有的 Nextcloud 或本地机房 NAS 中，ConeShare 仅在本地生成沙箱渲染缓存与只读水印流。',
+    title: '核心数据 100% 留在自有服务器',
+    body: '源文件、沙箱渲染缓存与只读水印流均运行在企业自有的服务器环境内，不经过任何第三方多租户云中转。',
   },
   {
     title: '企业级 1v1 交付支持',

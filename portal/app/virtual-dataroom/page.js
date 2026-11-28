@@ -61,9 +61,9 @@ export default function VirtualDataroomPage() {
   const steps = [
     {
       number: '01',
-      title: 'Direct Storage Mount & Folder Curation',
+      title: 'Cloud Import & Folder Curation',
       description:
-        'Mount your existing storage (Nextcloud, local NFS, S3-compatible, Google Drive, Dropbox) directly without migrating files. Build custom multi-tier folder hierarchies and keep content continuously in sync with one click.',
+        'Upload directly to your private server/S3 storage or import selected files from Nextcloud, Google Drive, and Dropbox. Build multi-tier folder hierarchies and refresh updated versions with one click without breaking shared links.',
       image: '/screenshots/feat-vdr-add-content.png',
     },
     {
@@ -92,7 +92,7 @@ export default function VirtualDataroomPage() {
   const faqs = [
     {
       q: 'How does ConeShare protect sensitive files compared to public SaaS datarooms?',
-      a: 'Conventional SaaS VDRs copy and host your confidential files on third-party multi-tenant servers. ConeShare operates on a self-hosted architecture that connects directly to your existing storage (Nextcloud, local filesystems, S3, Google Drive, Dropbox). High-definition previews, watermarking, and visitor analytics execute within your private infrastructure perimeter, ensuring files never leak to external vendors.',
+      a: 'Conventional SaaS VDRs store your confidential files on third-party multi-tenant servers. ConeShare runs on your own self-hosted infrastructure — storing files directly on your private server/S3 volume (with optional one-click file import from Nextcloud, Google Drive, or Dropbox). High-definition previews, watermarking, and visitor analytics execute within your private infrastructure perimeter.',
     },
     {
       q: 'Does it support dynamic PDF, Office, and video watermarking?',
@@ -137,7 +137,7 @@ export default function VirtualDataroomPage() {
                 Secure Virtual Data Rooms You Own
               </h1>
               <p className="mt-5 text-base leading-7 text-gray-600 sm:text-lg">
-                Unlimited data rooms, unlimited viewers, and enterprise-grade security on your own storage, at a fraction of legacy VDR costs. Share client proposals, board packets, audits, or deal files without moving data or juggling tools.
+                Unlimited data rooms, unlimited viewers, and enterprise-grade security on your own servers, at a fraction of legacy VDR costs. Share client proposals, board packets, audits, or deal files with zero per-seat fees.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-4">
                 <Link
@@ -146,14 +146,12 @@ export default function VirtualDataroomPage() {
                 >
                   View Live Demo
                 </Link>
-                <a
-                  href="https://github.com/coneshare/coneshare"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href="/pricing"
                   className="rounded-md border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 inline-flex items-center gap-1.5"
                 >
-                  Explore GitHub <span aria-hidden="true">→</span>
-                </a>
+                  Pricing &amp; $299 Setup <span aria-hidden="true">→</span>
+                </Link>
               </div>
             </div>
 
@@ -251,8 +249,8 @@ export default function VirtualDataroomPage() {
               <li className="flex items-start gap-3">
                 <CheckCircle className="h-6 w-6 text-gray-950 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-gray-900">Zero-Migration Storage Mounting</h4>
-                  <p className="text-sm text-gray-600 mt-1">Directly mount Nextcloud, local NFS, S3, or existing cloud buckets. When files update at the source, your datarooms sync immediately without broken links.</p>
+                  <h4 className="font-semibold text-gray-900">Seamless Cloud Import &amp; Version Sync</h4>
+                  <p className="text-sm text-gray-600 mt-1">Store files directly on your private server/S3, or import selected files from Nextcloud, Google Drive, and Dropbox with one-click version refreshes that keep shared links intact.</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
@@ -265,8 +263,8 @@ export default function VirtualDataroomPage() {
               <li className="flex items-start gap-3">
                 <CheckCircle className="h-6 w-6 text-gray-950 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-gray-900">Fair Open-Source Model</h4>
-                  <p className="text-sm text-gray-600 mt-1">Core VDR capabilities are fully open-source with no seat limits. Pay only when you scale into enterprise governance (SSO, SCIM, team workspaces).</p>
+                  <h4 className="font-semibold text-gray-900">Free Self-Hosting or $299 Turnkey Setup</h4>
+                  <p className="text-sm text-gray-600 mt-1">Core VDR capabilities are MIT open-source with unlimited seats. No DevOps team? Choose our $299 one-time Done-For-You Setup or $199/mo Managed BYOC.</p>
                 </div>
               </li>
             </ul>
@@ -334,9 +332,9 @@ export default function VirtualDataroomPage() {
                 <td className="px-6 py-4">No (Files are duplicated into third-party multi-tenant cloud databases)</td>
               </tr>
               <tr>
-                <td className="px-6 py-4 font-medium">Storage Architecture</td>
-                <td className="px-6 py-4">Zero migration; direct mount for Nextcloud, local NFS, S3 buckets, Google Drive, and Dropbox</td>
-                <td className="px-6 py-4">Public cloud sync only (Google Drive, Dropbox); cannot mount private or on-premise storage (Nextcloud/NFS)</td>
+                <td className="px-6 py-4 font-medium">Storage &amp; Cloud Import</td>
+                <td className="px-6 py-4">Private local/S3 storage on your own server, plus one-click file import &amp; version sync from Nextcloud, Google Drive, and Dropbox</td>
+                <td className="px-6 py-4">Public cloud upload only; no native integration with self-hosted Nextcloud or private infrastructure</td>
               </tr>
               <tr>
                 <td className="px-6 py-4 font-medium">Multi-Party Access Scoping</td>
@@ -355,8 +353,8 @@ export default function VirtualDataroomPage() {
               </tr>
               <tr>
                 <td className="px-6 py-4 font-medium">Licensing &amp; Pricing Model</td>
-                <td className="px-6 py-4 font-semibold text-green-700">Free open-source core with unlimited viewers and seats; upgrade to Enterprise only for SSO/SCIM governance</td>
-                <td className="px-6 py-4">Steep per-user seat pricing starting from Day 1 ($65–$150+/seat/mo), escalating dramatically with team size</td>
+                <td className="px-6 py-4 font-semibold text-green-700">Free MIT open-source with unlimited seats; optional $299 one-time turnkey setup or $199/mo Managed BYOC</td>
+                <td className="px-6 py-4">Steep per-user seat pricing starting from Day 1 ($65–$250+/seat/mo), escalating dramatically with team size</td>
               </tr>
             </tbody>
           </table>
@@ -395,17 +393,20 @@ export default function VirtualDataroomPage() {
           <p className="mt-4 text-base text-gray-200">
             Combine professional security, watermarking, and visitor tracking with complete self-hosted control.
           </p>
-          <div className="mt-8 flex items-center justify-center gap-6">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-6">
             <Link href="/demo" className="rounded-md bg-white px-5 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-100">
               View Live Demo
+            </Link>
+            <Link href="/pricing" className="text-sm font-semibold text-white hover:text-gray-200">
+              View Pricing &amp; $299 Turnkey Setup <span aria-hidden="true">→</span>
             </Link>
             <a
               href="https://github.com/coneshare/coneshare"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm font-semibold text-white hover:text-gray-200"
+              className="text-sm font-semibold text-gray-300 hover:text-white"
             >
-              Get Started on GitHub <span aria-hidden="true">→</span>
+              GitHub (MIT) <span aria-hidden="true">→</span>
             </a>
           </div>
         </section>

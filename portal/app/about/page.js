@@ -11,9 +11,9 @@ export const metadata = {
 
 const principles = [
   {
-    title: 'Zero-Migration Direct Storage Mount',
+    title: 'Self-Hosted Storage & Seamless Cloud Import',
     body:
-      'Organizations already manage assets in Nextcloud, local NFS, or cloud buckets. ConeShare mounts your existing storage in place, adding access governance and analytics without duplicating or migrating files.',
+      'Keep full custody of confidential files on your own server or S3-compatible storage, and import selected documents from Nextcloud, Google Drive, or Dropbox whenever they are ready for controlled external sharing.',
   },
   {
     title: '100% Open-Source Code Transparency',
