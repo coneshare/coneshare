@@ -11,7 +11,7 @@ English | [中文](./README_zh.md)
 
 Coneshare is an open-source, self-hosted alternative to DocSend and Virtual Data Room (VDR) software. It has no per-seat pricing, and files stay on your own servers.
 
-You can import files from Nextcloud, Google Drive, or Dropbox, or store them directly on local disk or S3-compatible storage such as MinIO. Coneshare adds virtual datarooms, dynamic watermarks, NDA gates, page-by-page engagement tracking, video streaming, and a remote MCP server for ChatGPT, Claude, Gemini, and Cursor.
+Upload files directly, or import them from Nextcloud, Google Drive, or Dropbox. Coneshare adds virtual datarooms, dynamic watermarks, NDA gates, page-by-page engagement tracking, video streaming, and a remote MCP server for ChatGPT, Claude, Gemini, and other AI clients.
 
 [Quick start](https://github.com/coneshare/coneshare-compose) · [Live demo](https://www.coneshare.com/demo) · [Docs](https://docs.coneshare.com/en/) · [Setup & Managed BYOC](https://www.coneshare.com/pricing) · [Forum](https://github.com/orgs/coneshare/discussions)
 
@@ -33,16 +33,16 @@ If you find this project useful, please consider starring the repository.
 
 ## Comparison
 
-| | Coneshare (MIT self-hosted) | DocSend (closed SaaS) | Papermark (cloud / free self-hosted) |
+| | Coneshare (open-source self-hosted) | DocSend (closed SaaS) | Papermark (cloud / free self-hosted) |
 | :--- | :--- | :--- | :--- |
 | **Virtual Data Rooms (VDR) in open source** | Included | Paid closed SaaS | Excluded from free self-hosted |
-| **Dynamic watermarks and NDA gates** | Included (MIT) | High-tier plans only | Commercial or paid plans for full VDR |
+| **Dynamic watermarks and NDA gates** | Included | High-tier plans only | Commercial or paid plans for full VDR |
 | **Team seats and external viewers** | Unlimited | Per-seat (`$180/mo` + `$60/seat/mo`) | Per-seat on cloud |
 | **Data residency and storage** | Your own servers | Third-party cloud | Cloud is third-party; self-hosted VDR needs a commercial license |
 
 ### How teams customize Coneshare
 
-Teams and system integrators have forked the MIT codebase for compliance and diligence workflows:
+Teams and system integrators have forked the open-source codebase for compliance and diligence workflows:
 
 - A solution partner in Saudi Arabia customized it for clinic document sharing and file collection under PDPL data residency rules.
 - A carbon-credit team adapted it into an investor due diligence portal combining protected documents with external operational telemetry.
@@ -52,7 +52,7 @@ Teams and system integrators have forked the MIT codebase for compliance and dil
 
 ## Deployment and managed hosting
 
-The MIT Community Edition is free with unlimited seats and viewers. If you would rather not set up servers, SSL, SMTP, and video transcoding yourself, we offer three paid services. Smaller orders use PayPal or credit card; annual and B2B orders can use corporate wire transfer and a commercial invoice.
+The open-source edition is free with unlimited seats and viewers. If you would rather not set up servers, SSL, SMTP, and video transcoding yourself, we offer three paid services. Smaller orders use PayPal or credit card; annual and B2B orders can use corporate wire transfer and a commercial invoice.
 
 | Service | Price (USD) | Best for | What is included |
 | :--- | :--- | :--- | :--- |
@@ -68,7 +68,7 @@ See full pricing and cost comparisons at [coneshare.com/pricing](https://www.con
 
 Coneshare runs on your own infrastructure:
 
-- Import files from Nextcloud, Google Drive, or Dropbox, or upload directly to your own server storage (local disk or MinIO).
+- Import files from Nextcloud, Google Drive, or Dropbox, or upload directly from your browser.
 - Coneshare adds:
   - Virtual datarooms and media previews
   - Access controls and link permissions
@@ -106,10 +106,10 @@ Keep your existing storage workflows while gaining access controls, datarooms, a
 
 ## AI agents and remote MCP
 
-You can connect web AI assistants (ChatGPT, Gemini, Claude.ai, and Grok) and CLI or desktop coding agents (Claude Code, Claude Desktop, Cursor, VS Code, Codex, and Antigravity `agy`) to your Coneshare workspace over the remote Model Context Protocol (MCP) endpoint (`/mcp/sse`). The server provides MCP tools for saving AI conversations, organizing datarooms, creating protected or watermarked share links, and checking viewer engagement.
+You can connect web AI assistants (ChatGPT, Gemini, Claude.ai, and others) and CLI or desktop coding agents (Claude Code, Cursor, Codex, Antigravity, and others) to your Coneshare workspace over the remote Model Context Protocol (MCP) endpoint (`/mcp/sse`). Coneshare MCP tools support saving AI conversations, organizing datarooms, creating protected or watermarked share links, and checking viewer engagement.
 
-- Web AI clients sign in with OAuth 2.1 and PKCE (`read` or `write` scopes). Destructive deletes, admin routes, and viewer PII remain blocked.
-- CLI and desktop agents authenticate with scoped API keys (`read_only`, `read_write`, or `full_access`).
+- Web AI clients sign in with OAuth 2.1, scoped to reading and writing documents and sharing while blocking deletes, admin routes, and viewer PII by default.
+- CLI and desktop agents authenticate with scoped API keys generated in the console.
 
 See [`mcp-server/README.md`](./mcp-server/README.md) for setup steps, the walkthrough video, and the tool list, or check [Coneshare AI & MCP](https://www.coneshare.com/agents) and [MCP Docs](https://docs.coneshare.com/en/mcp-server/).
 

@@ -9,9 +9,9 @@
 
 # Coneshare
 
-Coneshare 是开源、可自托管的 DocSend 替代品与虚拟数据室（Virtual Data Room），不按人头收费，文件留在您自己的服务器上。
+Coneshare 是开源、可自托管的 DocSend 替代品与虚拟资料室（Virtual Data Room），不按人头收费，文件留在您自己的服务器上。
 
-支持从 Nextcloud、Google Drive、Dropbox 导入文件，或直接存储在本地磁盘与 MinIO 等对象存储中。在此基础上提供虚拟资料室、动态水印、NDA 签署门禁、逐页阅读时长统计、视频流预览，以及面向 ChatGPT、Claude、Gemini 和 Cursor 的远程 MCP 服务。
+支持直接上传文件，或从 Nextcloud、Google Drive、Dropbox 导入。在此基础上提供虚拟资料室、动态水印、NDA 签署门禁、逐页阅读时长统计、视频流预览，以及面向 ChatGPT、Claude、Gemini 等 AI 客户端的远程 MCP 服务。
 
 [快速部署](https://github.com/coneshare/coneshare-compose) · [在线演示 Demo](https://www.coneshare.com/zh/demo) · [文档 (EN)](https://docs.coneshare.com/en/) · [部署与托管服务](https://www.coneshare.com/zh/pricing) · [讨论区](https://github.com/orgs/coneshare/discussions)
 
@@ -33,16 +33,16 @@ Coneshare 是开源、可自托管的 DocSend 替代品与虚拟数据室（Virt
 
 ## 方案对比
 
-| | Coneshare（MIT 开源自建） | DocSend（闭源 SaaS） | Papermark（云版 / 免费自托管版） |
+| | Coneshare（开源自建） | DocSend（闭源 SaaS） | Papermark（云版 / 免费自托管版） |
 | :--- | :--- | :--- | :--- |
 | **开源版包含虚拟资料室（VDR）** | 包含 | 闭源付费 | 免费自托管版不含 Data Rooms |
-| **动态水印与 NDA 门禁** | 包含（MIT） | 仅高阶套餐 | 商业用途或完整 VDR 需付费授权 |
+| **动态水印与 NDA 门禁** | 包含 | 仅高阶套餐 | 商业用途或完整 VDR 需付费授权 |
 | **团队席位与外部访客** | 不限人数 | 按席位收费（`$180/月` 起 + `$60/人/月`） | 云版按席位收费 |
 | **数据主权与存储位置** | 自有服务器 | 第三方云端 | 云版为第三方托管；商用自建 VDR 需购买授权 |
 
 ### 社区定制案例
 
-已有开发团队与系统集成商基于 Coneshare 的 MIT 开源代码进行二次开发：
+已有开发团队与系统集成商基于 Coneshare 的开源代码进行二次开发：
 
 - 沙特的一家方案商基于它做白标定制，用于当地医疗诊所的文档协作与文件收集，满足 PDPL 数据本地化要求。
 - 一家碳信用团队将其改造为投资人尽调门户，把受控文档与外部实时遥测页面结合在一起。
@@ -52,7 +52,7 @@ Coneshare 是开源、可自托管的 DocSend 替代品与虚拟数据室（Virt
 
 ## 部署与托管服务
 
-MIT 开源版免费使用，不限制成员和访客数。如果不想自己折腾服务器、SSL、SMTP 和视频转码，我们也提供三项付费服务。小额支持 PayPal 或信用卡支付，年付和大额对公订单支持银行电汇与正式商业发票。
+开源版免费使用，不限制成员和访客数。如果不想自己折腾服务器、SSL、SMTP 和视频转码，我们也提供三项付费服务。小额支持 PayPal 或信用卡支付，年付和大额对公订单支持银行电汇与正式商业发票。
 
 | 服务 | 价格（USD） | 适用对象 | 包含内容 |
 | :--- | :--- | :--- | :--- |
@@ -68,7 +68,7 @@ MIT 开源版免费使用，不限制成员和访客数。如果不想自己折�
 
 Coneshare 运行在您自己的基础设施之上：
 
-- 支持从 Nextcloud、Google Drive 或 Dropbox 导入文件，或直接上传至自有服务器存储（本地磁盘 / MinIO）。
+- 支持从 Nextcloud、Google Drive 或 Dropbox 导入，或直接从浏览器上传文件。
 - Coneshare 提供：
   - 虚拟资料室与多媒体预览
   - 访问控制与链接权限
@@ -106,10 +106,10 @@ Coneshare 运行在您自己的基础设施之上：
 
 ## AI Agents 与远程 MCP
 
-您可以通过远程 Model Context Protocol (MCP) 端点（`/mcp/sse`）将网页端 AI 助手（ChatGPT、Gemini、Claude.ai、Grok）以及 CLI 和桌面编程工具（Claude Code、Claude Desktop、Cursor、VS Code、Codex、Antigravity `agy`）接入 Coneshare 工作区。内置的 MCP 工具支持保存 AI 对话、管理资料室、生成受控或带水印的分享链接，以及查看访问统计。
+您可以通过远程 Model Context Protocol (MCP) 端点（`/mcp/sse`）将网页端 AI 助手（ChatGPT、Gemini、Claude.ai 等）以及 CLI 和桌面编程工具（Claude Code、Cursor、Codex、Antigravity 等）接入 Coneshare 工作区。Coneshare MCP 内置的工具支持保存 AI 对话、管理资料室、生成受控或带水印的分享链接，以及查看访问统计。
 
-- 网页端 AI 客户端通过 OAuth 2.1 和 PKCE 登录授权（支持 `read` 或 `write` 权限），删除操作、后台管理接口及访客隐私明细默认拦截。
-- CLI 与桌面客户端使用在控制台生成的分级 API Key（`read_only`、`read_write` 或 `full_access`）接入。
+- 网页端 AI 客户端通过 OAuth 2.1 登录授权，默认仅开放读写文档与分享能力，拦截删除、后台管理及访客隐私明细接口。
+- CLI 与桌面客户端使用在控制台生成的分级 API Key 接入。
 
 完整连接方式、演示视频与工具列表请见 [`mcp-server/README.md`](./mcp-server/README.md)，也可查看 [Coneshare AI & MCP 介绍页](https://www.coneshare.com/zh/agents) 和 [MCP 文档](https://docs.coneshare.com/en/mcp-server/)。
 
