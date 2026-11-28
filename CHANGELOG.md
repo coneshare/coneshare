@@ -1,6 +1,48 @@
 # Changelog
 
 
+## [2.0.0](https://github.com/coneshare/coneshare/compare/v1.11.2...v2.0.0) (2026-11-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mcp:** add per-request toolsets, instructions, and v1.0.0 tool cleanup
+
+### Features
+
+* **dataroom:** add frontend folder-to-dataroom push sync UI ([#424](https://github.com/coneshare/coneshare/issues/424)) ([faa4471](https://github.com/coneshare/coneshare/commit/faa447127dd6a3aaeaa0898744cfaf38b64aa813))
+* **datarooms:** add backend support for folder-to-dataroom push sync ([#424](https://github.com/coneshare/coneshare/issues/424)) ([12c84a7](https://github.com/coneshare/coneshare/commit/12c84a78a9f20d462af7d23d58e67834c91313cf))
+* **documents:** add folders and documents directly to datarooms ([#516](https://github.com/coneshare/coneshare/issues/516)) ([6bd56a6](https://github.com/coneshare/coneshare/commit/6bd56a6a01b61a65a290c8e47890235496d782f6))
+* **documents:** support document search by filename and description in Web UI and MCP ([#388](https://github.com/coneshare/coneshare/issues/388)) ([587d4b0](https://github.com/coneshare/coneshare/commit/587d4b072cb2f596eabbb6df58106b9092fba37b))
+* **frontend:** add synced folder awareness banner in DocumentsPage ([f0badc5](https://github.com/coneshare/coneshare/commit/f0badc54bea89e0b3fdde3a7d15b7f1222508239))
+* **mcp:** add create_text_document tool for in-memory text uploads ([0bdc059](https://github.com/coneshare/coneshare/commit/0bdc0594ed820157b35b312d9ce5b7e1d679f1d2))
+* **mcp:** add dataroom content search and name filter to list_datarooms ([fafec1e](https://github.com/coneshare/coneshare/commit/fafec1eb02ac6f724d4e0084921eb30dbfaa4dc8))
+* **mcp:** add per-request toolsets, instructions, and v1.0.0 tool cleanup ([3fe18c1](https://github.com/coneshare/coneshare/commit/3fe18c1035740aaa5e08adcef98347552e77cad4))
+* **mcp:** add read and download documents tools ([3a7195b](https://github.com/coneshare/coneshare/commit/3a7195b65e14b09c692448d32e17732374f25dbe))
+* **mcp:** add update file related tools ([68812aa](https://github.com/coneshare/coneshare/commit/68812aa89f02d528a9be2921db0b88f822d599ba))
+* **oauth,mcp:** add OAuth 2.1, PKCE, DCR, and consent UI for remote MCP ([#480](https://github.com/coneshare/coneshare/issues/480)) ([d1670e9](https://github.com/coneshare/coneshare/commit/d1670e9165ab375e079defc4e96c86160b35bbf7))
+* **portal:** add annoucement banner ([e66d2ea](https://github.com/coneshare/coneshare/commit/e66d2ea261405970541a56e66ac43108db59c0ab))
+* **portal:** add api document page ([b606832](https://github.com/coneshare/coneshare/commit/b606832f44b22726b8bc088d2b4f3f2f77899bb1))
+* **portal:** add chinese blog on MCP and dataroom ([186b3dd](https://github.com/coneshare/coneshare/commit/186b3dd85635302c615137f7e4f8e5a0bf1b5390))
+* **portal:** add Chinese demo page ([0fccd6c](https://github.com/coneshare/coneshare/commit/0fccd6cb1ded8548e902ebaf8ce748252e7aa781))
+* **portal:** add Chinese feature pages ([1a1ca8d](https://github.com/coneshare/coneshare/commit/1a1ca8d5ec5f5e607c885b79f26ac0735e64e006))
+* **portal:** add help center ([8df13d1](https://github.com/coneshare/coneshare/commit/8df13d10799cc70e35dea9225b69697f7d88a8e4))
+* **portal:** add incremental ETag sync and retries to R2 upload ([b8c23f6](https://github.com/coneshare/coneshare/commit/b8c23f6ae2bf9acfa604529b3ac690da0194dcde))
+* **portal:** add locale suggestion banner ([e79be3e](https://github.com/coneshare/coneshare/commit/e79be3e0babb078a9f419b93e4cb88c32800d365))
+* **portal:** fix mobile nav scrolling and add route transition feedback ([aafdf2a](https://github.com/coneshare/coneshare/commit/aafdf2ad7eec9ff6d7e2b98ab1bb6377d51390b9))
+* **portal:** revamp MCP agents page with zh localization, video showcase, and screenshots ([bc0900d](https://github.com/coneshare/coneshare/commit/bc0900d2edbcfabd119282facff50dfd19666f44))
+* **portal:** update nextjs build command, add upload r2 script ([9fd6e9e](https://github.com/coneshare/coneshare/commit/9fd6e9e6805d523c6cc154871b0613fd6b17568c))
+* **portal:** upload site to r2 and cloudfront rewrite ([76d4044](https://github.com/coneshare/coneshare/commit/76d4044762745b512c53911471e855c3020bbe0c))
+* **sharelinks:** add email and domain allowlist for share links ([#368](https://github.com/coneshare/coneshare/issues/368)) ([3d39fc1](https://github.com/coneshare/coneshare/commit/3d39fc12c82c40a921295d6df19b64c20d1f9835))
+
+
+### Bug Fixes
+
+* **oauth,mcp:** harden client allowlist, DCR logging, and share-link watermark rules ([97cde59](https://github.com/coneshare/coneshare/commit/97cde59fe7ebe415f848e18354e1ea20c78ee3cf))
+* **portal:** update header nav ([cb4fa5e](https://github.com/coneshare/coneshare/commit/cb4fa5ead5e6faaff29570dd4118c281d0a64b4e))
+* **portal:** update header nav ([ca7c580](https://github.com/coneshare/coneshare/commit/ca7c5802a2e1d025c2311fa16b8c1bcb7374bf14))
+* **sharelinks:** block access to trashed documents via dataroom links ([f2b9dec](https://github.com/coneshare/coneshare/commit/f2b9dec879d27c5d89ae50d01d0f0793687916fa))
+
 ## [1.11.2](https://github.com/coneshare/coneshare/compare/v1.11.1...v1.11.2) (2026-11-14)
 
 
